@@ -45,32 +45,29 @@ pub async fn subscribe(
     _to: BlockNumber,
     //rx: mpsc::UnboundedReceiver<Message>,
 ) -> Result<()> {
-    //let transport = web3::transports::WebSocket::new("wss://mainnet-dev.deeper.network").await?;
-    //let transport = web3::transports::Http::new("http://localhost:9933")?;
-    let transport = web3::transports::Http::new("https://mainnet-dev.deeper.network/rpc")?;
+    //let url= "http://localhost:9933";
+    let url = "https://mainnet-dev.deeper.network/rpc";
+    let topic_hash = hex!("b143df1eb05b3b515daace53f76f3d09c274eaddf108387165a6b64b9c1d40cf");
+    let transport = web3::transports::Http::new(url.clone())?;
     let mut web3 = web3::Web3::new(transport);
-
     let mut base_number = web3.eth().block_number().await?;
     let mut dst_number = base_number;
     loop {
         while base_number >= dst_number {
             tokio::time::sleep(std::time::Duration::new(5, 0)).await;
-            dst_number = web3.eth().block_number().await?;
+            let maybe_num = web3.eth().block_number().await;
+            if maybe_num.is_err() {
+                break;
+            } else {
+                dst_number = maybe_num.unwrap();
+            }
         }
 
         let info = info.clone();
         let filter = FilterBuilder::default()
             .from_block(BlockNumber::Number(base_number))
             .to_block(BlockNumber::Number(dst_number))
-            .topics(
-                Some(vec![hex!(
-                    "b143df1eb05b3b515daace53f76f3d09c274eaddf108387165a6b64b9c1d40cf"
-                )
-                .into()]),
-                None,
-                None,
-                None,
-            )
+            .topics(Some(vec![topic_hash.into()]), None, None, None)
             .build();
 
         let logs = web3.eth().logs(filter).await;
@@ -78,19 +75,25 @@ pub async fn subscribe(
             for log in logs {
                 println!("got log: {:?}", log);
                 let info = info.clone();
-                let res = tokio::spawn(async {
+                let _ = tokio::spawn(async {
                     let res = send_request(info).await;
                     println!("send_request res {:?}", res);
                 })
                 .await;
-                println!("tokio spawn {:?}", res);
             }
 
             base_number = dst_number + 1;
         } else {
-            web3 = web3::Web3::new(web3::transports::Http::new(
-                "https://mainnet-dev.deeper.network/rpc",
-            )?);
+            let url = url.clone();
+            loop {
+                let reconn = web3::transports::Http::new(url.clone());
+                if reconn.is_err() {
+                    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
+                } else {
+                    web3 = web3::Web3::new(reconn.unwrap());
+                    break;
+                }
+            }
         }
     }
 }
