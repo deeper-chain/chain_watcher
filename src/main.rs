@@ -66,7 +66,7 @@ pub async fn subscribe(
     chain: String,
     _url: String,
     topic: String,
-    _out_string: String,
+    out_string: String,
     _from: BlockNumber,
     _to: BlockNumber,
     //rx: mpsc::UnboundedReceiver<Message>,
@@ -79,9 +79,10 @@ pub async fn subscribe(
     let mut base_number = web3.eth().block_number().await?;
     println!("init block number {:?}", base_number);
     let mut dst_number = base_number;
+    let mut saved_dockers = std::collections::HashSet::<String>::new();
     loop {
         while base_number >= dst_number {
-            tokio::time::sleep(std::time::Duration::new(5, 0)).await;
+            tokio::time::sleep(std::time::Duration::new(8, 0)).await;
             let maybe_num = web3.eth().block_number().await;
             if maybe_num.is_err() {
                 break;
@@ -99,6 +100,7 @@ pub async fn subscribe(
 
         let logs = web3.eth().logs(filter).await;
         if let Ok(logs) = logs {
+            let info = out_string.clone();
             for log in logs {
                 println!("got log: {:?}", log);
                 let parse_res =
@@ -107,19 +109,28 @@ pub async fn subscribe(
 
                 let strs: Vec<String> = parse_res
                     .into_iter()
-                    .map(|t| match t {
-                        Token::String(res) => res,
-                        _ => "".to_string(),
+                    .filter(|t| t.type_check(&ParamType::String))
+                    .map(|t| {
+                        if let Token::String(res) = t {
+                            res
+                        } else {
+                            "".to_string()
+                        }
                     })
-                    .filter(|s| !s.is_empty())
                     .collect();
                 if strs.len() != 2 {
                     continue;
                 }
 
-                //let info = info.clone();
+                let pull_required = saved_dockers.insert(strs[0].clone());
+
                 let _ = tokio::spawn(async move {
-                    let _ = run_docker(strs[0].clone(), strs[1].clone()).await;
+                    let _ = run_docker(strs[0].clone(), strs[1].clone(), pull_required).await;
+                })
+                .await;
+                let info = info.clone();
+                let _ = tokio::spawn(async move {
+                    let _ = send_request(info.clone()).await;
                 })
                 .await;
             }
@@ -141,17 +152,21 @@ pub async fn subscribe(
     }
 }
 
-pub async fn run_docker(url: String, params: String) -> Result<()> {
+pub async fn run_docker(url: String, params: String, pull_required: bool) -> Result<()> {
     // if url.is_empty() {
     //     return Err(anyhow::Error());
     // }
     let nurl = url.clone();
     let names: Vec<&str> = nurl.rsplit_terminator('/').collect();
     println!("args url {} names0 {:?}", url, names[0]);
-    let output = Command::new("docker").arg("pull").arg(url).output().await?;
-    println!("docker pull res {:?}", output);
+    if pull_required {
+        let output = Command::new("docker").arg("pull").arg(url).output().await?;
+        println!("docker pull res {:?}", output);
+    }
+
     let output = Command::new("docker")
         .arg("run")
+        .arg("--rm")
         .arg(nurl)
         .arg(params)
         .output()
@@ -160,7 +175,7 @@ pub async fn run_docker(url: String, params: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn _send_request(sn: String) -> Result<()> {
+pub async fn send_request(sn: String) -> Result<()> {
     let url = format!("http://81.68.122.162:8000?sn={}", sn);
     let res = reqwest::get(url.clone()).await?.text().await?;
     println!("url {} res {:?}", url, res);
