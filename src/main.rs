@@ -54,8 +54,8 @@ async fn main() -> Result<()> {
             .await?;
 
         if output.stdout.is_empty() {
-            let fil_str = include_str!("/root/config/public_keys.json");
-            let obj = json::parse(fil_str)?;
+            let buffer = std::fs::read_to_string("/root/config/public_keys.json")?;
+            let obj = json::parse(&buffer)?;
             obj["pubkey"].as_str().unwrap_or_default().to_string()
         } else {
             String::from_utf8_lossy(&output.stdout).to_string()
