@@ -1,8 +1,13 @@
+mod worker;
+
+use crate::worker::{Worker, WorkerMsg};
 use anyhow::Result;
-use tokio::process::Command;
-//use tokio::sync::mpsc;
 use clap::Parser;
 use hex::FromHex;
+use std::collections::HashSet;
+use std::sync::Arc;
+use tokio::process::Command;
+use tokio::sync::{mpsc, Mutex};
 use web3::{
     ethabi::{self, param_type::ParamType, Token},
     types::{BlockNumber, FilterBuilder},
@@ -29,6 +34,9 @@ struct Args {
         default_value = "ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4"
     )]
     topic: String,
+
+    #[clap(short = 'w', long, default_value_t = 10)]
+    worker_count: usize,
 }
 
 #[tokio::main]
@@ -39,22 +47,31 @@ async fn main() -> Result<()> {
     println!("{:?} {}!", args.url, args.chain);
 
     //let output = Command::new("echo").arg("123456").output().await?;
-    let output = Command::new("curl")
-        .arg("localhost/api/admin/getDeviceId")
-        .output()
-        .await?;
-    let out_string = String::from_utf8_lossy(&output.stdout).to_string();
+    let out_string = {
+        let output = Command::new("curl")
+            .arg("localhost/api/admin/getDeviceId")
+            .output()
+            .await?;
+
+        if output.stdout.is_empty() {
+            let fil_str = include_str!("/root/config/public_keys.json");
+            let obj = json::parse(fil_str)?;
+            obj["pubkey"].as_str().unwrap_or_default().to_string()
+        } else {
+            String::from_utf8_lossy(&output.stdout).to_string()
+        }
+    };
+
     println!("shell output {:?}", out_string);
     //let (tx, _rx) = mpsc::unbounded_channel();
     let _ = tokio::spawn(async move {
-        println!("subscribe begin");
-        let _ = subscribe(
+        println!("inspect_chain_event begin");
+        let _ = inspect_chain_event(
             args.chain,
             args.url.unwrap_or_default(),
             args.topic,
             out_string,
-            BlockNumber::Number(0.into()),
-            BlockNumber::Number(0.into()),
+            args.worker_count,
         )
         .await;
     })
@@ -62,13 +79,12 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-pub async fn subscribe(
+pub async fn inspect_chain_event(
     chain: String,
     _url: String,
     topic: String,
     out_string: String,
-    _from: BlockNumber,
-    _to: BlockNumber,
+    worker_count: usize,
     //rx: mpsc::UnboundedReceiver<Message>,
 ) -> Result<()> {
     //let url= "http://localhost:9933";
@@ -79,7 +95,21 @@ pub async fn subscribe(
     let mut base_number = web3.eth().block_number().await?;
     println!("init block number {:?}", base_number);
     let mut dst_number = base_number;
-    let mut saved_dockers = std::collections::HashSet::<String>::new();
+
+    let images = Arc::new(Mutex::new(HashSet::new()));
+    let mut txs = Vec::new();
+    let mut idx = 0;
+
+    for _ in 0..worker_count {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let mut worker = Worker::new(out_string.clone(), images.clone(), rx);
+        txs.push(tx);
+
+        let _ = tokio::spawn(async move {
+            let _ = worker.run().await;
+        });
+    }
+
     loop {
         while base_number >= dst_number {
             tokio::time::sleep(std::time::Duration::new(8, 0)).await;
@@ -100,7 +130,6 @@ pub async fn subscribe(
 
         let logs = web3.eth().logs(filter).await;
         if let Ok(logs) = logs {
-            let info = out_string.clone();
             for log in logs {
                 println!("got log: {:?}", log);
                 let parse_res =
@@ -122,17 +151,15 @@ pub async fn subscribe(
                     continue;
                 }
 
-                let pull_required = saved_dockers.insert(strs[0].clone());
+                let _ = txs[idx].send(WorkerMsg::DockerInfo(strs[0].clone(), strs[1].clone()));
+                idx += 1;
 
-                let _ = tokio::spawn(async move {
-                    let _ = run_docker(strs[0].clone(), strs[1].clone(), pull_required).await;
-                })
-                .await;
-                let info = info.clone();
-                let _ = tokio::spawn(async move {
-                    let _ = send_request(info.clone()).await;
-                })
-                .await;
+                // let pull_required = saved_dockers.insert(strs[0].clone());
+
+                // let _ = tokio::spawn(async move {
+                //     let _ = run_docker(strs[0].clone(), strs[1].clone(),pull_required).await;
+                // })
+                // .await;
             }
 
             base_number = dst_number + 1;
@@ -142,7 +169,7 @@ pub async fn subscribe(
                 let reconn = web3::transports::Http::new(&chain.clone());
                 println!("reconn res {:?}", reconn);
                 if reconn.is_err() {
-                    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
+                    tokio::time::sleep(std::time::Duration::new(3, 0)).await;
                 } else {
                     web3 = web3::Web3::new(reconn.unwrap());
                     break;
@@ -172,12 +199,5 @@ pub async fn run_docker(url: String, params: String, pull_required: bool) -> Res
         .output()
         .await?;
     println!("docker run res {:?}", output);
-    Ok(())
-}
-
-pub async fn send_request(sn: String) -> Result<()> {
-    let url = format!("http://81.68.122.162:8000?sn={}", sn);
-    let res = reqwest::get(url.clone()).await?.text().await?;
-    println!("url {} res {:?}", url, res);
     Ok(())
 }
