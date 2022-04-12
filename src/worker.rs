@@ -39,13 +39,9 @@ impl Worker {
             if let Some(WorkerMsg::DockerInfo(url, params)) = self.rx.recv().await {
                 println!("args url {} ", url);
 
-                let pull_required = !self.images.lock().await.contains(&url);
+                let pull_required =  !self.images.lock().await.contains(&url);
                 if pull_required {
-                    let output = Command::new("docker")
-                        .arg("pull")
-                        .arg(url.clone())
-                        .output()
-                        .await?;
+                    let output = Command::new("docker").arg("pull").arg(url.clone()).output().await?;
                     println!("docker pull res {:?}", output);
                     if output.status.success() {
                         self.images.lock().await.insert(url.clone());
@@ -65,6 +61,7 @@ impl Worker {
                     let _ = send_request(sn.clone()).await;
                 })
                 .await;
+
             } else {
                 break;
             }

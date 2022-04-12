@@ -150,16 +150,8 @@ pub async fn inspect_chain_event(
                 if strs.len() != 2 {
                     continue;
                 }
-
                 let _ = txs[idx].send(WorkerMsg::DockerInfo(strs[0].clone(), strs[1].clone()));
-                idx = (idx + 1) % txs.len();
-
-                // let pull_required = saved_dockers.insert(strs[0].clone());
-
-                // let _ = tokio::spawn(async move {
-                //     let _ = run_docker(strs[0].clone(), strs[1].clone(),pull_required).await;
-                // })
-                // .await;
+                idx =  (idx + 1) % txs.len();
             }
 
             base_number = dst_number + 1;
@@ -179,25 +171,3 @@ pub async fn inspect_chain_event(
     }
 }
 
-pub async fn run_docker(url: String, params: String, pull_required: bool) -> Result<()> {
-    // if url.is_empty() {
-    //     return Err(anyhow::Error());
-    // }
-    let nurl = url.clone();
-    let names: Vec<&str> = nurl.rsplit_terminator('/').collect();
-    println!("args url {} names0 {:?}", url, names[0]);
-    if pull_required {
-        let output = Command::new("docker").arg("pull").arg(url).output().await?;
-        println!("docker pull res {:?}", output);
-    }
-
-    let output = Command::new("docker")
-        .arg("run")
-        .arg("--rm")
-        .arg(nurl)
-        .arg(params)
-        .output()
-        .await?;
-    println!("docker run res {:?}", output);
-    Ok(())
-}
