@@ -48,7 +48,6 @@ impl Worker {
                         .await?;
                     println!("docker pull res {:?}", output);
                     if output.status.success() {
-                        println!("docker pull success");
                         self.images.lock().await.insert(url.clone());
                     }
                 }

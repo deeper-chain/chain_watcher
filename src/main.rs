@@ -152,7 +152,7 @@ pub async fn inspect_chain_event(
                 }
 
                 let _ = txs[idx].send(WorkerMsg::DockerInfo(strs[0].clone(), strs[1].clone()));
-                idx += 1;
+                idx = (idx + 1) % txs.len();
 
                 // let pull_required = saved_dockers.insert(strs[0].clone());
 
