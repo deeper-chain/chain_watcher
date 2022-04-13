@@ -1,8 +1,9 @@
 use anyhow::Result;
-use std::collections::HashSet;
+use lru::LruCache;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
+use tokio::time::timeout;
 
 pub enum WorkerMsg {
     //url ,params
@@ -11,7 +12,7 @@ pub enum WorkerMsg {
 
 pub struct Worker {
     sn: String,
-    images: Arc<Mutex<HashSet<String>>>,
+    images: Arc<Mutex<LruCache<String, bool>>>,
     rx: UnboundedReceiver<WorkerMsg>,
 }
 
@@ -25,7 +26,7 @@ pub async fn send_request(sn: String) -> Result<()> {
 impl Worker {
     pub fn new(
         sn: String,
-        images: Arc<Mutex<HashSet<String>>>,
+        images: Arc<Mutex<LruCache<String, bool>>>,
         rx: UnboundedReceiver<WorkerMsg>,
     ) -> Self {
         Self { sn, images, rx }
@@ -38,20 +39,37 @@ impl Worker {
             let sn = self.sn.clone();
             if let Some(WorkerMsg::DockerInfo(url, params)) = self.rx.recv().await {
                 println!("args url {} ", url);
-
-                let pull_required =  !self.images.lock().await.contains(&url);
+                let mut dropped = String::new();
+                let time_duration = std::time::Duration::new(100, 0);
+                let pull_required = self.images.lock().await.get(&url).is_none();
                 if pull_required {
-                    let output = Command::new("docker").arg("pull").arg(url.clone()).output().await?;
-                    println!("docker pull res {:?}", output);
-                    if output.status.success() {
-                        self.images.lock().await.insert(url.clone());
+                    let pull_res = timeout(
+                        time_duration,
+                        Command::new("docker").arg("pull").arg(url.clone()).output(),
+                    )
+                    .await;
+                    if pull_res.is_err() {
+                        println!("docker pull {} timeout", url);
+                        continue;
+                    }
+
+                    let pull_res = pull_res.unwrap();
+                    println!("docker pull res {:?}", pull_res);
+                    if pull_res.is_ok() && pull_res.unwrap().status.success() {
+                        if let Some((old, _)) = self.images.lock().await.push(url.clone(), true) {
+                            if old != url {
+                                dropped = old;
+                            }
+                        }
+                    } else {
+                        continue;
                     }
                 }
 
                 let output = Command::new("docker")
                     .arg("run")
                     .arg("--rm")
-                    .arg(url)
+                    .arg(url.clone())
                     .arg(params)
                     .output()
                     .await?;
@@ -62,6 +80,10 @@ impl Worker {
                 })
                 .await;
 
+                if !dropped.is_empty() {
+                    println!("docker image droped {:?}", dropped);
+                    let _ = Command::new("docker").arg("rmi").arg(url).output().await;
+                }
             } else {
                 break;
             }

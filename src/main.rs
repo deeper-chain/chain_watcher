@@ -4,7 +4,7 @@ use crate::worker::{Worker, WorkerMsg};
 use anyhow::Result;
 use clap::Parser;
 use hex::FromHex;
-use std::collections::HashSet;
+use lru::LruCache;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::{mpsc, Mutex};
@@ -96,7 +96,7 @@ pub async fn inspect_chain_event(
     println!("init block number {:?}", base_number);
     let mut dst_number = base_number;
 
-    let images = Arc::new(Mutex::new(HashSet::new()));
+    let images = Arc::new(Mutex::new(LruCache::new(10)));
     let mut txs = Vec::new();
     let mut idx = 0;
 
@@ -151,7 +151,7 @@ pub async fn inspect_chain_event(
                     continue;
                 }
                 let _ = txs[idx].send(WorkerMsg::DockerInfo(strs[0].clone(), strs[1].clone()));
-                idx =  (idx + 1) % txs.len();
+                idx = (idx + 1) % txs.len();
             }
 
             base_number = dst_number + 1;
@@ -170,4 +170,3 @@ pub async fn inspect_chain_event(
         }
     }
 }
-
