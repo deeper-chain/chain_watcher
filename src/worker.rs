@@ -40,7 +40,7 @@ impl Worker {
             if let Some(WorkerMsg::DockerInfo(url, params)) = self.rx.recv().await {
                 println!("args url {} ", url);
                 let mut dropped = String::new();
-                let time_duration = std::time::Duration::new(100, 0);
+                let time_duration = std::time::Duration::new(3600, 0);
                 let pull_required = self.images.lock().await.get(&url).is_none();
                 if pull_required {
                     let pull_res = timeout(
