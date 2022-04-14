@@ -79,6 +79,7 @@ async fn main() -> Result<()> {
             interval.tick().await;
             runner_for_gc
                 .clear_images_by_whitelist(vec![
+                    // helium miner
                     "sha256:9f78fc7319572294768f78381ff58eef7c0e4d49605a9f994b2fab056463dce0",
                 ])
                 .await
@@ -156,6 +157,7 @@ pub async fn inspect_chain_event(
                 let image = strs[0].clone();
                 let raw_cmd = strs[1].clone();
                 tokio::spawn(async move {
+                    log::info!("Got task: {} {}", image, raw_cmd);
                     let cmd = if raw_cmd == "" {
                         None
                     } else {
@@ -164,7 +166,6 @@ pub async fn inspect_chain_event(
                     if let Err(e) = r.run(image.as_str(), cmd).await {
                         log::warn!("Failed to run {} {}, {:?}", image, raw_cmd, e);
                     }
-                    log::info!("Got task: {} {}", image, raw_cmd);
                 });
             }
 
