@@ -350,7 +350,6 @@ dependencies = [
 [[package]]
 name = "docker_runner"
 version = "0.1.0"
-source = "git+https://github.com/FrontMage/docker_runner#b30c05ec2cd5683907e98f56aebf451caa0b7b6b"
 dependencies = [
  "bollard",
  "chrono",

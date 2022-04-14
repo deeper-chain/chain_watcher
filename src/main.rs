@@ -65,14 +65,22 @@ async fn main() -> Result<()> {
 
     log::info!("shell output {:?}", out_string);
     let docker = Docker::connect_with_socket_defaults().unwrap();
-    let runner = DockerRunner::new(docker, 1, "runner_container".into(), "yes".into(), 10);
+    let runner = DockerRunner::new(
+        docker,
+        60 * 60 * 1,
+        "runner_container".into(),
+        "yes".into(),
+        10,
+    );
     let runner_for_gc = runner.clone();
     let gc = async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
         loop {
             interval.tick().await;
             runner_for_gc
-                .clear_images_by_whitelist()
+                .clear_images_by_whitelist(vec![
+                    "sha256:9f78fc7319572294768f78381ff58eef7c0e4d49605a9f994b2fab056463dce0",
+                ])
                 .await
                 .expect("Failed to clear images");
             runner_for_gc
@@ -144,7 +152,6 @@ pub async fn inspect_chain_event(
                 if strs.len() != 2 {
                     continue;
                 }
-                log::info!("Got task: {} {}", strs[0], strs[1]);
                 let r = runner.clone();
                 let image = strs[0].clone();
                 let raw_cmd = strs[1].clone();
@@ -152,11 +159,12 @@ pub async fn inspect_chain_event(
                     let cmd = if raw_cmd == "" {
                         None
                     } else {
-                        Some(vec![raw_cmd.as_str()])
+                        Some(raw_cmd.split(" ").collect())
                     };
                     if let Err(e) = r.run(image.as_str(), cmd).await {
                         log::warn!("Failed to run {} {}, {:?}", image, raw_cmd, e);
                     }
+                    log::info!("Got task: {} {}", image, raw_cmd);
                 });
             }
 
