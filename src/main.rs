@@ -1,13 +1,9 @@
-mod worker;
-
-use crate::worker::{Worker, WorkerMsg};
 use anyhow::Result;
 use clap::Parser;
+use docker_runner::{Docker, DockerRunner};
 use hex::FromHex;
-use lru::LruCache;
-use std::sync::Arc;
-use tokio::process::Command;
-use tokio::sync::{mpsc, Mutex};
+use simplelog::*;
+use tokio::{join, process::Command};
 use web3::{
     ethabi::{self, param_type::ParamType, Token},
     types::{BlockNumber, FilterBuilder},
@@ -41,10 +37,15 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _ = env_logger::try_init();
-
+    CombinedLogger::init(vec![TermLogger::new(
+        LevelFilter::Info,
+        simplelog::Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+    .expect("Failed to init logger");
     let args = Args::parse();
-    println!("{:?} {}!", args.url, args.chain);
+    log::info!("{:?} {}!", args.url, args.chain);
 
     //let output = Command::new("echo").arg("123456").output().await?;
     let out_string = {
@@ -54,7 +55,7 @@ async fn main() -> Result<()> {
             .await?;
 
         if output.stdout.is_empty() {
-            let buffer = std::fs::read_to_string("/root/config/public_keys.json")?;
+            let buffer = std::fs::read_to_string("./pk.json")?;
             let obj = json::parse(&buffer)?;
             obj["pubkey"].as_str().unwrap_or_default().to_string()
         } else {
@@ -62,20 +63,31 @@ async fn main() -> Result<()> {
         }
     };
 
-    println!("shell output {:?}", out_string);
-    //let (tx, _rx) = mpsc::unbounded_channel();
-    let _ = tokio::spawn(async move {
-        println!("inspect_chain_event begin");
-        let _ = inspect_chain_event(
-            args.chain,
-            args.url.unwrap_or_default(),
-            args.topic,
-            out_string,
-            args.worker_count,
-        )
-        .await;
-    })
-    .await;
+    log::info!("shell output {:?}", out_string);
+    let docker = Docker::connect_with_socket_defaults().unwrap();
+    let runner = DockerRunner::new(docker, 1, "runner_container".into(), "yes".into(), 10);
+    let runner_for_gc = runner.clone();
+    let gc = async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            runner_for_gc
+                .clear_images_by_whitelist()
+                .await
+                .expect("Failed to clear images");
+            runner_for_gc
+                .clear_timeout_containers()
+                .await
+                .expect("Failed to clear old containers");
+        }
+    };
+    let chain_watcher = async move {
+        log::info!("inspect_chain_event begin");
+        inspect_chain_event(args.chain, args.url.unwrap_or_default(), args.topic, runner)
+            .await
+            .expect("Failed to run chain watcher");
+    };
+    join!(gc, chain_watcher);
     Ok(())
 }
 
@@ -83,32 +95,14 @@ pub async fn inspect_chain_event(
     chain: String,
     _url: String,
     topic: String,
-    out_string: String,
-    worker_count: usize,
-    //rx: mpsc::UnboundedReceiver<Message>,
+    runner: DockerRunner,
 ) -> Result<()> {
-    //let url= "http://localhost:9933";
-
     let topic_hash = <[u8; 32]>::from_hex(topic)?;
     let transport = web3::transports::Http::new(&chain.clone())?;
     let mut web3 = web3::Web3::new(transport);
     let mut base_number = web3.eth().block_number().await?;
-    println!("init block number {:?}", base_number);
+    log::info!("init block number {:?}", base_number);
     let mut dst_number = base_number;
-
-    let images = Arc::new(Mutex::new(LruCache::new(10)));
-    let mut txs = Vec::new();
-    let mut idx = 0;
-
-    for _ in 0..worker_count {
-        let (tx, rx) = mpsc::unbounded_channel();
-        let mut worker = Worker::new(out_string.clone(), images.clone(), rx);
-        txs.push(tx);
-
-        let _ = tokio::spawn(async move {
-            let _ = worker.run().await;
-        });
-    }
 
     loop {
         while base_number >= dst_number {
@@ -118,7 +112,7 @@ pub async fn inspect_chain_event(
                 break;
             } else {
                 dst_number = maybe_num.unwrap();
-                println!("now dst block number {:?}", dst_number);
+                log::info!("now dst block number {:?}", dst_number);
             }
         }
 
@@ -130,10 +124,10 @@ pub async fn inspect_chain_event(
 
         let logs = web3.eth().logs(filter).await;
         if let Ok(logs) = logs {
-            for log in logs {
-                println!("got log: {:?}", log);
+            for log_content in logs {
+                log::info!("got log: {:?}", log_content);
                 let parse_res =
-                    ethabi::decode(&[ParamType::String, ParamType::String], &log.data.0);
+                    ethabi::decode(&[ParamType::String, ParamType::String], &log_content.data.0);
                 let parse_res = parse_res.unwrap_or_default();
 
                 let strs: Vec<String> = parse_res
@@ -150,16 +144,28 @@ pub async fn inspect_chain_event(
                 if strs.len() != 2 {
                     continue;
                 }
-                let _ = txs[idx].send(WorkerMsg::DockerInfo(strs[0].clone(), strs[1].clone()));
-                idx = (idx + 1) % txs.len();
+                log::info!("Got task: {} {}", strs[0], strs[1]);
+                let r = runner.clone();
+                let image = strs[0].clone();
+                let raw_cmd = strs[1].clone();
+                tokio::spawn(async move {
+                    let cmd = if raw_cmd == "" {
+                        None
+                    } else {
+                        Some(vec![raw_cmd.as_str()])
+                    };
+                    if let Err(e) = r.run(image.as_str(), cmd).await {
+                        log::warn!("Failed to run {} {}, {:?}", image, raw_cmd, e);
+                    }
+                });
             }
 
-            base_number = dst_number + 1;
+            base_number = dst_number + 1_u64;
         } else {
             let chain = chain.clone();
             loop {
                 let reconn = web3::transports::Http::new(&chain.clone());
-                println!("reconn res {:?}", reconn);
+                log::info!("reconn res {:?}", reconn);
                 if reconn.is_err() {
                     tokio::time::sleep(std::time::Duration::new(3, 0)).await;
                 } else {
