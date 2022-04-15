@@ -96,6 +96,8 @@ async fn main() -> Result<()> {
                 .clear_images_by_whitelist(vec![
                     // helium miner
                     "sha256:9f78fc7319572294768f78381ff58eef7c0e4d49605a9f994b2fab056463dce0",
+                    // rust musl
+                    "sha256:e277b00dcb3712402210b6c0cc476f025e0abf4bf38b0de00f2dae26d04a62dd",
                 ])
                 .await
                 .expect("Failed to clear images");
