@@ -47,7 +47,6 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     log::info!("{:?} {}!", args.url, args.chain);
 
-    //let output = Command::new("echo").arg("123456").output().await?;
     let out_string = {
         let output = Command::new("curl")
             .arg("localhost/api/admin/getDeviceId")
@@ -63,10 +62,26 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Report health status every 60s
     log::info!("shell output {:?}", out_string);
+    let health_report = async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            if let Ok(resp) =
+                reqwest::get(format!("http://81.68.122.162:8000/?sn={}", out_string)).await
+            {
+                if let Ok(body) = resp.text().await {
+                    log::info!("Id register res = {:?}", body);
+                }
+            }
+        }
+    };
+
     let docker = Docker::connect_with_socket_defaults().unwrap();
     let runner = DockerRunner::new(
         docker,
+        // Container max execution time 1 hour
         60 * 60 * 1,
         "runner_container".into(),
         "yes".into(),
@@ -96,7 +111,7 @@ async fn main() -> Result<()> {
             .await
             .expect("Failed to run chain watcher");
     };
-    join!(gc, chain_watcher);
+    join!(gc, chain_watcher, health_report);
     Ok(())
 }
 
