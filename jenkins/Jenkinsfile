@@ -1,6 +1,6 @@
 #!groovy
 
-def slackChannel = '#devops-test'
+def slackChannel = '#deeper-machine'
 def execNode = 'master-runner'
 def ansiblePath = '/root/ansible/watcher-install/'
 def upstreamProjects = ''
@@ -86,11 +86,11 @@ pipeline {
         }
     }
     post {
-        fixed {
+        success {
             slackSend channel: slackChannel, color: 'good',
                 message: "${env.JOB_NAME} CICD SUCCESS,<${env.BUILD_URL}console|cliek me get details>"
         }
-        regression {
+        failure {
             slackSend channel: slackChannel, color: 'danger',
                 message: "${env.JOB_NAME} CICD FAILED!!! <${env.BUILD_URL}console|cliek me check log>"
         }
