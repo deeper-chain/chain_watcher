@@ -1,7 +1,7 @@
 #!groovy
 
 def slackChannel = '#devops-test'
-def execNode = 'common-runner'
+def execNode = 'master-runner'
 def deployCmd = ''
 def upstreamProjects = ''
 
