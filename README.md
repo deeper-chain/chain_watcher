@@ -8,6 +8,7 @@ Clone the repo and make a release of the package:
 
 ``` shell
 git https://github.com/deeper-chain/chain_watcher.git
+git checkout -b gc origin/gc
 cd chain_watcher
 ```
 
