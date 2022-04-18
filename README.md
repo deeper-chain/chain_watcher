@@ -10,11 +10,12 @@ Clone the repo and make a release of the package:
 git https://github.com/deeper-chain/chain_watcher.git
 git checkout -b gc origin/gc
 cd chain_watcher
+cargo build --release
 ```
 
-To build this project, make sure you have cross compiler tools installed on your development machine.
+To build this project for other platform, make sure you have cross compiler tools installed on your development machine.
 
-### MacOS
+### host MacOS, target for arm
 
 macOS cross compiler toolchains, supports both Apple Silicon & Intel Macs.
 
@@ -51,4 +52,12 @@ export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-unknown-linux-gnu-g
 rustup target add aarch64-unknown-linux-gnu
 cd chain_watcher
 cargo build --target=aarch64-unknown-linux-gnu --release
+```
+
+### host x86 Linux, target arm
+
+```bash
+cargo install cross
+cd chain_watcher
+cross build --target  aarch64-unknown-linux-gnu --release
 ```
