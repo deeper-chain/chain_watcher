@@ -1,0 +1,99 @@
+#!groovy
+
+def slackChannel = '#devops-test'
+def execNode = 'common-runner'
+def deployCmd = ''
+def upstreamProjects = ''
+
+if (env.BRANCH_NAME == "master") {
+    deployCmd = ""
+}
+
+
+pipeline {
+    agent {
+        node { label execNode }
+    }
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '3'))
+    }
+
+    triggers {
+        upstream(
+            upstreamProjects: upstreamProjects,
+            threshold: hudson.model.Result.SUCCESS
+        )
+    }
+    environment {
+        webhook_key = credentials('webhook_key')
+    }
+
+    stages {
+        stage('test') {
+            when {
+                not {
+                    anyOf {
+                        branch 'main'
+                    }
+                }
+            }
+            stages {
+                stage('Unit Test') {
+                    steps {
+                        echo 'prepare to code test'
+                    //TODO
+                    }
+                }
+                stage('report') {
+                    when {
+                        not {
+                            branch 'PR-*'
+                        }
+                    }
+                    steps {
+                        echo 'generate code report'
+                    //TODO
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            when {
+                anyOf {
+                   branch env.BRANCH_NAME
+                }
+            }
+            steps {
+                {
+                sh 'cargo install cross'
+                sh 'cross build --target  aarch64-unknown-linux-gnu --release'
+                }
+            }
+        }
+
+        stage('Deploy code') {
+            when {
+                anyOf {
+                    branch env.BRANCH_NAME
+                }
+            }
+            steps {
+                sh 'echo "will execute ansible"'
+            }
+        }
+    }
+    post {
+        fixed {
+            slackSend channel: slackChannel, color: 'good',
+                message: "${env.JOB_NAME} 构建成功，<${env.BUILD_URL}console|点击我查看日志>"
+        }
+        regression {
+            slackSend channel: slackChannel, color: 'danger',
+                message: "${env.JOB_NAME} 构建失败，<${env.BUILD_URL}console|点击我查看日志>"
+        }
+    }
+
+}
