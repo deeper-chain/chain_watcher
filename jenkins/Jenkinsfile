@@ -80,8 +80,8 @@ pipeline {
                 }
             }
             steps {
-                sh "cp target/aarch64-unknown-linux-gnu/release/watcher $ANSIBLEPATH/script"
-                sh "ansible-playbook -i $ANSIBLEPATH/hosts $ANSIBLEPATH/playbooks/watcher_install.yml"
+                sh 'cp target/aarch64-unknown-linux-gnu/release/watcher $ANSIBLEPATH/script'
+                sh 'ansible-playbook -i $ANSIBLEPATH/hosts $ANSIBLEPATH/playbooks/watcher_install.yml'
             }
         }
     }
