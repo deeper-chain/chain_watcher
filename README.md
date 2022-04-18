@@ -61,3 +61,20 @@ cargo install cross
 cd chain_watcher
 cross build --target  aarch64-unknown-linux-gnu --release
 ```
+
+## Systemd configuration
+```bash
+[Unit]
+Description=Chain watcher
+[Service]
+Type=simple
+ExecStartPre=mkdir -p {{your log stash directory path}}
+ExecStart={{built binary path}}
+ExecStop=pkill watcher
+Restart=always
+RestartSec=5
+StandardOutput=append:{{your std out log path}}
+StandardError=append:{{your std err log path}}
+[Install]
+WantedBy=multi-user.target
+```
