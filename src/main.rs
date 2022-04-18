@@ -1,13 +1,18 @@
 use anyhow::Result;
 use clap::Parser;
 use docker_runner::{Docker, DockerRunner};
+use ethers::core::rand::thread_rng;
+use ethers::signers::{LocalWallet, Signer};
 use hex::FromHex;
 use simplelog::*;
+use std::path::Path;
 use tokio::{join, process::Command};
 use web3::{
     ethabi::{self, param_type::ParamType, Token},
     types::{BlockNumber, FilterBuilder},
 };
+
+static OPERATOR: &'static str = "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT";
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -35,6 +40,35 @@ struct Args {
     worker_count: usize,
 }
 
+/// Making sure wallet file exists and readable
+fn ensure_wallet(
+    wallet_dir: &str,
+    wallet_filename: &str,
+    password: &str,
+) -> Result<LocalWallet, std::io::Error> {
+    let key_path = Path::new(wallet_dir).join(wallet_filename);
+    match LocalWallet::decrypt_keystore(&key_path, password) {
+        Ok(wallet) => {
+            log::info!("Restore evm wallet from key {:?}", key_path.to_str());
+            Ok(wallet)
+        }
+        Err(e) => {
+            if !key_path.exists() {
+                log::info!("No existing key found, creating new evm wallet");
+                let (wallet, filename) =
+                    LocalWallet::new_keystore(&wallet_dir, &mut thread_rng(), password).unwrap();
+                std::fs::rename(Path::new(wallet_dir).join(filename), &key_path)?;
+                Ok(wallet)
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("{:?}", e),
+                ))
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     CombinedLogger::init(vec![TermLogger::new(
@@ -46,6 +80,14 @@ async fn main() -> Result<()> {
     .expect("Failed to init logger");
     let args = Args::parse();
     log::info!("{:?} {}!", args.url, args.chain);
+
+    let wallet = ensure_wallet("./key", "evm_wallet", "9527")?;
+    log::info!("Evm address: {:?}", wallet.address());
+    let msg = format!("deeper evm:{}", &OPERATOR).as_bytes().to_vec();
+    let signature = wallet.sign_message(&msg).await?;
+    signature
+        .verify(msg, wallet.address())
+        .expect("Failed to verify signature");
 
     let out_string = {
         let output = Command::new("curl")
