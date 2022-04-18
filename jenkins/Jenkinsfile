@@ -2,7 +2,7 @@
 
 def slackChannel = '#devops-test'
 def execNode = 'master-runner'
-def deployCmd = ''
+def ansiblePath = '/root/ansible/watcher-install/'
 def upstreamProjects = ''
 
 if (env.BRANCH_NAME == "master") {
@@ -28,6 +28,7 @@ pipeline {
     }
     environment {
         webhook_key = credentials('webhook_key')
+        ANSIBLE_PATH = "{$ansiblePath}"
     }
 
     stages {
@@ -67,7 +68,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'cargo install cross'
+                // sh 'cargo install cross'
                 sh 'cross build --target  aarch64-unknown-linux-gnu --release'
             }
         }
@@ -79,7 +80,8 @@ pipeline {
                 }
             }
             steps {
-                sh 'echo "will execute ansible"'
+                sh "cp target/aarch64-unknown-linux-gnu/release/watcher $ANSIBLEPATH/script"
+                sh "ansible-playbook -i $ANSIBLEPATH/hosts $ANSIBLEPATH/playbooks/watcher_install.yml"
             }
         }
     }
