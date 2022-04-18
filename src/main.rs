@@ -1,10 +1,13 @@
 use anyhow::Result;
-use clap::Parser;
 use docker_runner::{Docker, DockerRunner};
 use ethers::core::rand::thread_rng;
 use ethers::signers::{LocalWallet, Signer};
 use hex::FromHex;
+use serde::{Deserialize, Serialize};
 use simplelog::*;
+use std::default::Default;
+use std::fs::{File, OpenOptions};
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use tokio::{join, process::Command};
 use web3::{
@@ -12,32 +15,60 @@ use web3::{
     types::{BlockNumber, FilterBuilder},
 };
 
-static OPERATOR: &'static str = "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT";
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Config {
+    pub operator: String,
+    pub chain: String,
+    pub topic: String,
+}
 
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Name of the person to greet
-    #[clap(
-        short = 'c',
-        long,
-        default_value = "https://mainnet-dev.deeper.network/rpc"
-    )]
-    chain: String,
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            operator: "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT".into(),
+            chain: "https://mainnet-dev.deeper.network/rpc".into(),
+            topic: "ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4".into(),
+        }
+    }
+}
 
-    #[clap(short = 'u', long, required = false)]
-    url: Option<String>,
-
-    #[clap(
-        short = 't',
-        long,
-        default_value = "ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4"
-    )]
-    topic: String,
-
-    #[clap(short = 'w', long, default_value_t = 10)]
-    worker_count: usize,
+impl Config {
+    pub fn from_yaml(config_path: &str) -> Result<Self, std::io::Error> {
+        let file = File::open(config_path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_yaml::from_reader(reader).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{:?}", e))
+        })?)
+    }
+    pub fn to_yaml(&self, config_path: &str) -> Result<(), std::io::Error> {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(config_path)?;
+        let writer = BufWriter::new(file);
+        serde_yaml::to_writer(writer, &self).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{:?}", e))
+        })?;
+        Ok(())
+    }
+    pub fn ensure_config(config_path: &str) -> Result<Self, std::io::Error> {
+        match Self::from_yaml(config_path) {
+            Ok(config) => {
+                log::info!("Restore config from {}", config_path);
+                Ok(config)
+            }
+            Err(e) => {
+                if !Path::new(config_path).exists() {
+                    log::info!("No config found, using default config");
+                    let config = Self::default();
+                    config.to_yaml(config_path)?;
+                    Ok(config)
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
 }
 
 /// Making sure wallet file exists and readable
@@ -71,6 +102,7 @@ fn ensure_wallet(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let config = Config::ensure_config("./config.yaml")?;
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Info,
         simplelog::Config::default(),
@@ -78,12 +110,13 @@ async fn main() -> Result<()> {
         ColorChoice::Auto,
     )])
     .expect("Failed to init logger");
-    let args = Args::parse();
-    log::info!("{:?} {}!", args.url, args.chain);
+    log::info!("{:?}", config);
 
     let wallet = ensure_wallet("./key", "evm_wallet", "9527")?;
     log::info!("Evm address: {:?}", wallet.address());
-    let msg = format!("deeper evm:{}", &OPERATOR).as_bytes().to_vec();
+    let msg = format!("deeper evm:{}", &config.operator)
+        .as_bytes()
+        .to_vec();
     let signature = wallet.sign_message(&msg).await?;
     signature
         .verify(msg, wallet.address())
@@ -151,7 +184,7 @@ async fn main() -> Result<()> {
     };
     let chain_watcher = async move {
         log::info!("inspect_chain_event begin");
-        inspect_chain_event(args.chain, args.url.unwrap_or_default(), args.topic, runner)
+        inspect_chain_event(config.chain, config.topic, runner)
             .await
             .expect("Failed to run chain watcher");
     };
@@ -159,12 +192,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-pub async fn inspect_chain_event(
-    chain: String,
-    _url: String,
-    topic: String,
-    runner: DockerRunner,
-) -> Result<()> {
+pub async fn inspect_chain_event(chain: String, topic: String, runner: DockerRunner) -> Result<()> {
     let topic_hash = <[u8; 32]>::from_hex(topic)?;
     let transport = web3::transports::Http::new(&chain.clone())?;
     let mut web3 = web3::Web3::new(transport);
