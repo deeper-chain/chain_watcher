@@ -28,7 +28,7 @@ pipeline {
     }
     environment {
         webhook_key = credentials('webhook_key')
-        ANSIBLE_PATH = "{$ansiblePath}"
+        ANSIBLE_PATH = "${ansiblePath}"
     }
 
     stages {
