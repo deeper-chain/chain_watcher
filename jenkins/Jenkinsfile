@@ -88,11 +88,11 @@ pipeline {
     post {
         fixed {
             slackSend channel: slackChannel, color: 'good',
-                message: "${env.JOB_NAME} 构建成功，<${env.BUILD_URL}console|点击我查看日志>"
+                message: "${env.JOB_NAME} CICD SUCCESS,<${env.BUILD_URL}console|cliek me get details>"
         }
         regression {
             slackSend channel: slackChannel, color: 'danger',
-                message: "${env.JOB_NAME} 构建失败，<${env.BUILD_URL}console|点击我查看日志>"
+                message: "${env.JOB_NAME} CICD FAILED!!! <${env.BUILD_URL}console|cliek me check log>"
         }
     }
 
