@@ -7,9 +7,9 @@ The deeper chain watcher application. Manages the tasks of deeper chain.
 Clone the repo and make a release of the package:
 
 ``` shell
-git https://github.com/deeper-chain/chain_watcher.git
+git clone https://github.com/deeper-chain/web3d.git
+cd web3d
 git checkout -b gc origin/gc
-cd chain_watcher
 cargo build --release
 ```
 
