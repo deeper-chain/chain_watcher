@@ -54,12 +54,24 @@ cd chain_watcher
 cargo build --target=aarch64-unknown-linux-gnu --release
 ```
 
-### host x86 Linux, target arm
+### host x86 Linux, target arm64
+
+intall cross compiler toolchain and dependency library
 
 ```bash
-cargo install cross
+sudo apt install -y gcc-aarch64-linux-gnu
+sudo apt install -y pkg-config
+sudo apt install -y libssl-dev
+```
+
+
+```bash
+export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 cd chain_watcher
-cross build --target  aarch64-unknown-linux-gnu --release
+cargo build --target=aarch64-unknown-linux-gnu --release
 ```
 
 ## Systemd configuration
