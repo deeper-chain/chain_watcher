@@ -77,6 +77,9 @@ fn ensure_wallet(
     wallet_filename: &str,
     password: &str,
 ) -> Result<LocalWallet, std::io::Error> {
+    if !Path::new(wallet_dir).exists() {
+        std::fs::create_dir_all(wallet_dir)?;
+    }
     let key_path = Path::new(wallet_dir).join(wallet_filename);
     match LocalWallet::decrypt_keystore(&key_path, password) {
         Ok(wallet) => {
