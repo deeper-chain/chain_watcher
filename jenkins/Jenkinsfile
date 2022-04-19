@@ -93,11 +93,11 @@ pipeline {
     post {
         success {
             slackSend channel: slackChannel, color: 'good',
-                message: "${env.JOB_NAME} CICD SUCCESS,<${env.BUILD_URL}console|cliek me get details>"
+                message: "${env.JOB_NAME} CICD SUCCESS,<${env.BUILD_URL}console|click me get details>"
         }
         failure {
             slackSend channel: slackChannel, color: 'danger',
-                message: "${env.JOB_NAME} CICD FAILED!!! <${env.BUILD_URL}console|cliek me check log>"
+                message: "${env.JOB_NAME} CICD FAILED!!! <${env.BUILD_URL}console|click me check log>"
         }
     }
 

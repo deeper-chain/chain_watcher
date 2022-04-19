@@ -66,6 +66,7 @@ sudo apt install -y libssl-dev
 
 
 ```bash
+rustup target add aarch64-unknown-linux-gnu
 export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
 export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
 export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
