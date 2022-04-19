@@ -15,6 +15,8 @@ use web3::{
     types::{BlockNumber, FilterBuilder},
 };
 
+mod sub_client;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub operator: String,

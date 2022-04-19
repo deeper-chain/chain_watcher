@@ -1,7 +1,7 @@
 ---
 operator: 5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT
 chain: "https://mainnet-dev.deeper.network/rpc"
-topic: ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4
-wallet_dir: /var/web3d
+topic: 45e61a1539c67cee122dab5145fc6f86e3af6a4ead1b47dfe0f39ea182b43d6d
+wallet_dir: ./key
 wallet_filename: eth_key
 eth_key_password: "9527"
