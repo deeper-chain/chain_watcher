@@ -20,6 +20,9 @@ pub struct Config {
     pub operator: String,
     pub chain: String,
     pub topic: String,
+    pub wallet_dir: String,
+    pub wallet_filename: String,
+    pub eth_key_password: String,
 }
 
 impl Default for Config {
@@ -28,6 +31,9 @@ impl Default for Config {
             operator: "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT".into(),
             chain: "https://mainnet-dev.deeper.network/rpc".into(),
             topic: "ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4".into(),
+            wallet_dir: "/var/web3d".into(),
+            wallet_filename: "eth_key".into(),
+            eth_key_password: "9527".into(),
         }
     }
 }
@@ -77,6 +83,9 @@ fn ensure_wallet(
     wallet_filename: &str,
     password: &str,
 ) -> Result<LocalWallet, std::io::Error> {
+    if !Path::new(wallet_dir).exists() {
+        std::fs::create_dir_all(wallet_dir)?;
+    }
     let key_path = Path::new(wallet_dir).join(wallet_filename);
     match LocalWallet::decrypt_keystore(&key_path, password) {
         Ok(wallet) => {
@@ -112,7 +121,11 @@ async fn main() -> Result<()> {
     .expect("Failed to init logger");
     log::info!("{:?}", config);
 
-    let wallet = ensure_wallet("./key", "evm_wallet", "9527")?;
+    let wallet = ensure_wallet(
+        &config.wallet_dir,
+        &config.wallet_filename,
+        &config.eth_key_password,
+    )?;
     log::info!("Evm address: {:?}", wallet.address());
     let msg = format!("deeper evm:{}", &config.operator)
         .as_bytes()

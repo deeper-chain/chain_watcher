@@ -7,9 +7,9 @@ The deeper chain watcher application. Manages the tasks of deeper chain.
 Clone the repo and make a release of the package:
 
 ``` shell
-git https://github.com/deeper-chain/chain_watcher.git
+git clone https://github.com/deeper-chain/web3d.git
+cd web3d
 git checkout -b gc origin/gc
-cd chain_watcher
 cargo build --release
 ```
 
@@ -38,7 +38,7 @@ export CXX_x86_64_unknown_linux_gnu=x86_64-unknown-linux-gnu-g++
 export AR_x86_64_unknown_linux_gnu=x86_64-unknown-linux-gnu-ar
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-unknown-linux-gnu-gcc
 rustup target add x86_64-unknown-linux-gnu
-cd chain_watcher
+cd web3d
 cargo build --target=x86_64-unknown-linux-gnu --release
 ```
 
@@ -50,16 +50,29 @@ export CXX_aarch64_unknown_linux_gnu=aarch64-unknown-linux-gnu-g++
 export AR_aarch64_unknown_linux_gnu=aarch64-unknown-linux-gnu-ar
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-unknown-linux-gnu-gcc
 rustup target add aarch64-unknown-linux-gnu
-cd chain_watcher
+cd web3d
 cargo build --target=aarch64-unknown-linux-gnu --release
 ```
 
-### host x86 Linux, target arm
+### host x86 Linux, target arm64
+
+intall cross compiler toolchain and dependency library
 
 ```bash
-cargo install cross
-cd chain_watcher
-cross build --target  aarch64-unknown-linux-gnu --release
+sudo apt install -y gcc-aarch64-linux-gnu
+sudo apt install -y pkg-config
+sudo apt install -y libssl-dev
+```
+
+
+```bash
+rustup target add aarch64-unknown-linux-gnu
+export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+cd web3d
+cargo build --target=aarch64-unknown-linux-gnu --release
 ```
 
 ## Systemd configuration
