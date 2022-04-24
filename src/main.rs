@@ -223,24 +223,24 @@ pub async fn race_for_task(
     task_id: U256,
     self_evm_wallet: Wallet<SigningKey>,
 ) -> Result<(), anyhow::Error> {
+    let contract = Contract::from_json(
+        web3.eth(),
+        hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
+        include_bytes!("../token.json"),
+    )?;
+    let result = contract
+        .signed_call(
+            "raceSubIndexForTask",
+            (task_id,),
+            Options {
+                gas: Some(500000_u64.into()),
+                ..Options::default()
+            },
+            &SecretKey::from_slice(&self_evm_wallet.signer().to_bytes()).unwrap(),
+        )
+        .await?;
+    log::info!("Race tx: {:?}", result);
     for _ in 0..5 {
-        let contract = Contract::from_json(
-            web3.eth(),
-            hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
-            include_bytes!("../token.json"),
-        )?;
-        let result = contract
-            .signed_call(
-                "raceSubIndexForTask",
-                (task_id,),
-                Options {
-                    gas: Some(500000_u64.into()),
-                    ..Options::default()
-                },
-                &SecretKey::from_slice(&self_evm_wallet.signer().to_bytes()).unwrap(),
-            )
-            .await?;
-        log::info!("Race tx: {:?}", result);
         tokio::time::sleep(std::time::Duration::from_secs(20)).await;
         let tx = web3.eth().transaction_receipt(result).await?.unwrap();
         if tx.status.unwrap() == 1_u64.into() {
@@ -263,7 +263,28 @@ pub async fn inspect_chain_event(
 
     log::info!("init block number {:?}", base_number);
     let mut dst_number = base_number;
-
+    let contract = Contract::from_json(
+        web3.eth(),
+        hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
+        include_bytes!("../token.json"),
+    )?;
+    let result = contract
+        .signed_call(
+            "raceSubIndexForTask",
+            (14_u32,),
+            Options {
+                gas: Some(500000_u64.into()),
+                ..Options::default()
+            },
+            &SecretKey::from_slice(&self_eth_wallet.signer().to_bytes()).unwrap(),
+        )
+        .await?;
+    log::info!("Race tx: {:?}", result);
+    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+    let tx = web3.eth().transaction_receipt(result).await?.unwrap();
+    if tx.status.unwrap() == 1_u64.into() {
+        println!("ok");
+    }
     loop {
         while base_number >= dst_number {
             tokio::time::sleep(std::time::Duration::new(8, 0)).await;
@@ -307,6 +328,7 @@ pub async fn inspect_chain_event(
                     let eth_wallet = self_eth_wallet.clone();
                     tokio::spawn(async move {
                         log::info!("Got task: {} {} {}", tid, image, raw_cmd);
+                        tokio::time::sleep(std::time::Duration::new(30, 0)).await;
                         match race_for_task(web3_c, tid, eth_wallet).await {
                             Ok(_) => {
                                 let cmd = if raw_cmd == "" {
