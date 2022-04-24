@@ -5,3 +5,5 @@ topic: 45e61a1539c67cee122dab5145fc6f86e3af6a4ead1b47dfe0f39ea182b43d6d
 wallet_dir: ./key
 wallet_filename: eth_key
 eth_key_password: "9527"
+operator_phrase: boring crush turtle chronic dignity taxi glide hill exist twenty sure movie
+substrate_endpoint: "wss://mainnet-dev.deeper.network:443"

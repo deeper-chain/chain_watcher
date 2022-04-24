@@ -1,8 +1,12 @@
 use anyhow::Result;
 use docker_runner::{Docker, DockerRunner};
 use ethers::core::rand::thread_rng;
+use ethers::prelude::k256::ecdsa::SigningKey;
+use ethers::prelude::{Wallet, U256};
 use ethers::signers::{LocalWallet, Signer};
 use hex::FromHex;
+use hex_literal::hex;
+use secp256k1::SecretKey;
 use serde::{Deserialize, Serialize};
 use simplelog::*;
 use std::default::Default;
@@ -10,6 +14,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use tokio::{join, process::Command};
+use web3::contract::{Contract, Options};
 use web3::{
     ethabi::{self, param_type::ParamType, Token},
     types::{BlockNumber, FilterBuilder},
@@ -25,6 +30,8 @@ pub struct Config {
     pub wallet_dir: String,
     pub wallet_filename: String,
     pub eth_key_password: String,
+    pub operator_phrase: String,
+    pub substrate_endpoint: String,
 }
 
 impl Default for Config {
@@ -32,10 +39,13 @@ impl Default for Config {
         Config {
             operator: "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT".into(),
             chain: "https://mainnet-dev.deeper.network/rpc".into(),
-            topic: "ff68b5ae1c6eef082af114f218b96313f8eaa0e0ccbf5a4d2795eab86b5fdec4".into(),
-            wallet_dir: "/var/web3d".into(),
+            topic: "x45e61a1539c67cee122dab5145fc6f86e3af6a4ead1b47dfe0f39ea182b43d6d".into(),
+            wallet_dir: "/var/deeper/web3d".into(),
             wallet_filename: "eth_key".into(),
             eth_key_password: "9527".into(),
+            operator_phrase:
+                "boring crush turtle chronic dignity taxi glide hill exist twenty sure movie".into(),
+            substrate_endpoint: "wss://mainnet-dev.deeper.network:443".into(),
         }
     }
 }
@@ -51,6 +61,7 @@ impl Config {
     pub fn to_yaml(&self, config_path: &str) -> Result<(), std::io::Error> {
         let file = OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .open(config_path)?;
         let writer = BufWriter::new(file);
@@ -66,14 +77,11 @@ impl Config {
                 Ok(config)
             }
             Err(e) => {
-                if !Path::new(config_path).exists() {
-                    log::info!("No config found, using default config");
-                    let config = Self::default();
-                    config.to_yaml(config_path)?;
-                    Ok(config)
-                } else {
-                    Err(e)
-                }
+                log::info!("No valid config file found, using default config");
+                log::debug!("Failed to load wallet: {:?}", e);
+                let config = Self::default();
+                config.to_yaml(config_path)?;
+                Ok(config)
             }
         }
     }
@@ -129,13 +137,18 @@ async fn main() -> Result<()> {
         &config.eth_key_password,
     )?;
     log::info!("Evm address: {:?}", wallet.address());
-    let msg = format!("deeper evm:{}", &config.operator)
-        .as_bytes()
-        .to_vec();
-    let signature = wallet.sign_message(&msg).await?;
-    signature
-        .verify(msg, wallet.address())
-        .expect("Failed to verify signature");
+    let sub = sub_client::Substrate::new(&config.substrate_endpoint).await?;
+    if let Err(e) = sub
+        .pair_eth2sub(wallet.clone(), &config.operator_phrase)
+        .await
+    {
+        log::info!(
+            "Already paired to operator: {}",
+            format!("{:?}", e).contains("EthAddressHasMapped")
+        );
+    } else {
+        log::info!("Pair success");
+    }
 
     let out_string = {
         let output = Command::new("curl")
@@ -153,7 +166,7 @@ async fn main() -> Result<()> {
     };
 
     // Report health status every 60s
-    log::info!("shell output {:?}", out_string);
+    log::info!("SN: {:?}", out_string);
     let health_report = async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
         loop {
@@ -186,8 +199,6 @@ async fn main() -> Result<()> {
                 .clear_images_by_whitelist(vec![
                     // helium miner
                     "sha256:9f78fc7319572294768f78381ff58eef7c0e4d49605a9f994b2fab056463dce0",
-                    // rust musl
-                    "sha256:e277b00dcb3712402210b6c0cc476f025e0abf4bf38b0de00f2dae26d04a62dd",
                 ])
                 .await
                 .expect("Failed to clear images");
@@ -199,7 +210,7 @@ async fn main() -> Result<()> {
     };
     let chain_watcher = async move {
         log::info!("inspect_chain_event begin");
-        inspect_chain_event(config.chain, config.topic, runner)
+        inspect_chain_event(config.chain, config.topic, runner, wallet)
             .await
             .expect("Failed to run chain watcher");
     };
@@ -207,11 +218,49 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-pub async fn inspect_chain_event(chain: String, topic: String, runner: DockerRunner) -> Result<()> {
+pub async fn race_for_task(
+    web3: web3::Web3<web3::transports::Http>,
+    task_id: U256,
+    self_evm_wallet: Wallet<SigningKey>,
+) -> Result<(), anyhow::Error> {
+    for _ in 0..5 {
+        let contract = Contract::from_json(
+            web3.eth(),
+            hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
+            include_bytes!("../token.json"),
+        )?;
+        let result = contract
+            .signed_call(
+                "raceSubIndexForTask",
+                (task_id,),
+                Options {
+                    gas: Some(500000_u64.into()),
+                    ..Options::default()
+                },
+                &SecretKey::from_slice(&self_evm_wallet.signer().to_bytes()).unwrap(),
+            )
+            .await?;
+        log::info!("Race tx: {:?}", result);
+        tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+        let tx = web3.eth().transaction_receipt(result).await?.unwrap();
+        if tx.status.unwrap() == 1_u64.into() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+pub async fn inspect_chain_event(
+    chain: String,
+    topic: String,
+    runner: DockerRunner,
+    self_eth_wallet: Wallet<SigningKey>,
+) -> Result<()> {
     let topic_hash = <[u8; 32]>::from_hex(topic)?;
     let transport = web3::transports::Http::new(&chain.clone())?;
     let mut web3 = web3::Web3::new(transport);
     let mut base_number = web3.eth().block_number().await?;
+
     log::info!("init block number {:?}", base_number);
     let mut dst_number = base_number;
 
@@ -237,38 +286,52 @@ pub async fn inspect_chain_event(chain: String, topic: String, runner: DockerRun
         if let Ok(logs) = logs {
             for log_content in logs {
                 log::info!("got log: {:?}", log_content);
-                let parse_res =
-                    ethabi::decode(&[ParamType::String, ParamType::String], &log_content.data.0);
+                let parse_res = ethabi::decode(
+                    &[
+                        ParamType::Uint(0),
+                        ParamType::String,
+                        ParamType::String,
+                        ParamType::Uint(0),
+                    ],
+                    &log_content.data.0,
+                );
                 let parse_res = parse_res.unwrap_or_default();
-
-                let strs: Vec<String> = parse_res
-                    .into_iter()
-                    .filter(|t| t.type_check(&ParamType::String))
-                    .map(|t| {
-                        if let Token::String(res) = t {
-                            res
-                        } else {
-                            "".to_string()
+                if let [Token::Uint(task_id), Token::String(image_url), Token::String(args), Token::Uint(_max_task_num)] =
+                    parse_res.as_slice()
+                {
+                    let r = runner.clone();
+                    let tid = task_id.clone();
+                    let image = image_url.clone();
+                    let raw_cmd = args.clone();
+                    let web3_c = web3.clone();
+                    let eth_wallet = self_eth_wallet.clone();
+                    tokio::spawn(async move {
+                        log::info!("Got task: {} {} {}", tid, image, raw_cmd);
+                        match race_for_task(web3_c, tid, eth_wallet).await {
+                            Ok(_) => {
+                                let cmd = if raw_cmd == "" {
+                                    None
+                                } else {
+                                    Some(raw_cmd.split(" ").collect())
+                                };
+                                if let Err(e) = r.run(image.as_str(), cmd).await {
+                                    log::warn!(
+                                        "Failed to run {} {} {}, {:?}",
+                                        tid,
+                                        image,
+                                        raw_cmd,
+                                        e
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("Failed to race for task: {:?}", e);
+                            }
                         }
-                    })
-                    .collect();
-                if strs.len() != 2 {
-                    continue;
+                    });
+                } else {
+                    log::info!("Skipping task: {:?}", parse_res);
                 }
-                let r = runner.clone();
-                let image = strs[0].clone();
-                let raw_cmd = strs[1].clone();
-                tokio::spawn(async move {
-                    log::info!("Got task: {} {}", image, raw_cmd);
-                    let cmd = if raw_cmd == "" {
-                        None
-                    } else {
-                        Some(raw_cmd.split(" ").collect())
-                    };
-                    if let Err(e) = r.run(image.as_str(), cmd).await {
-                        log::warn!("Failed to run {} {}, {:?}", image, raw_cmd, e);
-                    }
-                });
             }
 
             base_number = dst_number + 1_u64;
