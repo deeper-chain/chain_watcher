@@ -122,7 +122,7 @@ fn ensure_wallet(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = Config::ensure_config("./config.yaml")?;
+    let config = Config::ensure_config("/root/config.yaml")?;
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Info,
         simplelog::Config::default(),
