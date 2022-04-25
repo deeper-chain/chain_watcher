@@ -2,7 +2,7 @@ use anyhow::Result;
 use docker_runner::{Docker, DockerRunner};
 use ethers::core::rand::thread_rng;
 use ethers::prelude::k256::ecdsa::SigningKey;
-use ethers::prelude::{Wallet, U256};
+use ethers::prelude::{Wallet, U256, U64};
 use ethers::signers::{LocalWallet, Signer};
 use hex::FromHex;
 use hex_literal::hex;
@@ -13,6 +13,7 @@ use std::default::Default;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
+use std::str::FromStr;
 use tokio::{join, process::Command};
 use web3::contract::{Contract, Options};
 use web3::{
@@ -39,7 +40,7 @@ impl Default for Config {
         Config {
             operator: "5HmxV7yUHQnJYnVZVqDW2zd2qGznrvtqKLgyzFKnCS7jCAtT".into(),
             chain: "https://mainnet-dev.deeper.network/rpc".into(),
-            topic: "x45e61a1539c67cee122dab5145fc6f86e3af6a4ead1b47dfe0f39ea182b43d6d".into(),
+            topic: "f73572a14c820f867be454ea2eba1ec98b27da2ccc4e50373c3565b77bf6c569".into(),
             wallet_dir: "/var/deeper/web3d".into(),
             wallet_filename: "eth_key".into(),
             eth_key_password: "9527".into(),
@@ -137,6 +138,7 @@ async fn main() -> Result<()> {
         &config.eth_key_password,
     )?;
     log::info!("Evm address: {:?}", wallet.address());
+    log::info!("Evm private_key: {:x}", wallet.signer().to_bytes());
     let sub = sub_client::Substrate::new(&config.substrate_endpoint).await?;
     if let Err(e) = sub
         .pair_eth2sub(wallet.clone(), &config.operator_phrase)
@@ -221,11 +223,11 @@ async fn main() -> Result<()> {
 pub async fn race_for_task(
     web3: web3::Web3<web3::transports::Http>,
     task_id: U256,
-    self_evm_wallet: Wallet<SigningKey>,
+    self_eth_wallet: Wallet<SigningKey>,
 ) -> Result<(), anyhow::Error> {
     let contract = Contract::from_json(
         web3.eth(),
-        hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
+        hex!("029698bae17dB8550A392D37bB9980c5b6949c53").into(),
         include_bytes!("../token.json"),
     )?;
     let result = contract
@@ -233,18 +235,29 @@ pub async fn race_for_task(
             "raceSubIndexForTask",
             (task_id,),
             Options {
-                gas: Some(500000_u64.into()),
+                gas: Some(140850_u64.into()),
                 ..Options::default()
             },
-            &SecretKey::from_slice(&self_evm_wallet.signer().to_bytes()).unwrap(),
+            &SecretKey::from_slice(&self_eth_wallet.signer().to_bytes()).unwrap(),
         )
         .await?;
     log::info!("Race tx: {:?}", result);
-    for _ in 0..5 {
+    for retry_times in 0..2 {
         tokio::time::sleep(std::time::Duration::from_secs(20)).await;
-        let tx = web3.eth().transaction_receipt(result).await?.unwrap();
-        if tx.status.unwrap() == 1_u64.into() {
-            break;
+        if let Some(tx) = web3.eth().transaction_receipt(result).await? {
+            if let Some(status) = tx.status {
+                if status == 1_u64.into() {
+                    break;
+                }
+                if status == 0_u64.into() {
+                    return Err(anyhow::anyhow!("Already raced for this"));
+                }
+            }
+        } else {
+            log::warn!("Tx: {:?} not found", result);
+            if retry_times == 1 {
+                return Err(anyhow::anyhow!("Race transaction not found"));
+            }
         }
     }
     Ok(())
@@ -260,31 +273,10 @@ pub async fn inspect_chain_event(
     let transport = web3::transports::Http::new(&chain.clone())?;
     let mut web3 = web3::Web3::new(transport);
     let mut base_number = web3.eth().block_number().await?;
+    // let mut base_number = U64::from(3818535_u64);
 
     log::info!("init block number {:?}", base_number);
     let mut dst_number = base_number;
-    let contract = Contract::from_json(
-        web3.eth(),
-        hex!("B0B401Aa1033c32fC6e2033ddDfaC929318a2d97").into(),
-        include_bytes!("../token.json"),
-    )?;
-    let result = contract
-        .signed_call(
-            "raceSubIndexForTask",
-            (14_u32,),
-            Options {
-                gas: Some(500000_u64.into()),
-                ..Options::default()
-            },
-            &SecretKey::from_slice(&self_eth_wallet.signer().to_bytes()).unwrap(),
-        )
-        .await?;
-    log::info!("Race tx: {:?}", result);
-    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
-    let tx = web3.eth().transaction_receipt(result).await?.unwrap();
-    if tx.status.unwrap() == 1_u64.into() {
-        println!("ok");
-    }
     loop {
         while base_number >= dst_number {
             tokio::time::sleep(std::time::Duration::new(8, 0)).await;
@@ -324,30 +316,36 @@ pub async fn inspect_chain_event(
                     let tid = task_id.clone();
                     let image = image_url.clone();
                     let raw_cmd = args.clone();
-                    let web3_c = web3.clone();
                     let eth_wallet = self_eth_wallet.clone();
+                    let web3_c = web3.clone();
                     tokio::spawn(async move {
                         log::info!("Got task: {} {} {}", tid, image, raw_cmd);
-                        tokio::time::sleep(std::time::Duration::new(30, 0)).await;
-                        match race_for_task(web3_c, tid, eth_wallet).await {
-                            Ok(_) => {
-                                let cmd = if raw_cmd == "" {
-                                    None
-                                } else {
-                                    Some(raw_cmd.split(" ").collect())
-                                };
-                                if let Err(e) = r.run(image.as_str(), cmd).await {
-                                    log::warn!(
-                                        "Failed to run {} {} {}, {:?}",
-                                        tid,
-                                        image,
-                                        raw_cmd,
-                                        e
-                                    );
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                        for _ in 0..25 {
+                            match race_for_task(web3_c.clone(), tid, eth_wallet.clone()).await {
+                                Ok(_) => {
+                                    let cmd = if raw_cmd == "" {
+                                        None
+                                    } else {
+                                        Some(raw_cmd.split(" ").collect())
+                                    };
+                                    if let Err(e) = r.run(image.as_str(), cmd).await {
+                                        log::warn!(
+                                            "Failed to run {} {} {}, {:?}",
+                                            tid,
+                                            image,
+                                            raw_cmd,
+                                            e
+                                        );
+                                    }
+                                    break;
                                 }
-                            }
-                            Err(e) => {
-                                log::error!("Failed to race for task: {:?}", e);
+                                Err(e) => {
+                                    log::error!("Failed to race for task: {:?}", e);
+                                    if format!("{:?}", e).contains("Already raced for this") {
+                                        break;
+                                    }
+                                }
                             }
                         }
                     });
