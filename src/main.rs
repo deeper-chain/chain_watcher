@@ -1,4 +1,5 @@
 use anyhow::Result;
+use core::panic;
 use docker_runner::{Docker, DockerRunner};
 use ethers::core::rand::thread_rng;
 use ethers::prelude::k256::ecdsa::SigningKey;
@@ -21,7 +22,7 @@ use web3::{
     types::{BlockNumber, FilterBuilder},
 };
 
-mod sub_client;
+// mod sub_client;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -120,9 +121,28 @@ fn ensure_wallet(
     }
 }
 
+async fn get_sn() -> Result<String> {
+    let out_string = {
+        let output = Command::new("curl")
+            .arg("localhost/api/admin/getDeviceId")
+            .output()
+            .await?;
+
+        if output.stdout.is_empty() {
+            let buffer = std::fs::read_to_string("./pk.json")?;
+            let obj = json::parse(&buffer)?;
+            obj["pubkey"].as_str().unwrap_or_default().to_string()
+        } else {
+            String::from_utf8_lossy(&output.stdout).to_string()
+        }
+    };
+    Ok(out_string)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = Config::ensure_config("/root/config.yaml")?;
+    // let config = Config::ensure_config("./config.yaml")?;
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Info,
         simplelog::Config::default(),
@@ -139,33 +159,41 @@ async fn main() -> Result<()> {
     )?;
     log::info!("Evm address: {:?}", wallet.address());
     log::info!("Evm private_key: {:x}", wallet.signer().to_bytes());
-    let sub = sub_client::Substrate::new(&config.substrate_endpoint).await?;
-    if let Err(e) = sub
-        .pair_eth2sub(wallet.clone(), &config.operator_phrase)
+    let transport = web3::transports::Http::new(&config.chain.clone())?;
+    let web3 = web3::Web3::new(transport);
+    loop {
+        let resp = reqwest::get(format!(
+            "http://81.68.122.162:8000/get_starting_dpr?wallet_address={:x}",
+            wallet.address()
+        ))
+        .await?
+        .text()
         .await
-    {
-        log::info!(
-            "Already paired to operator: {}",
-            format!("{:?}", e).contains("EthAddressHasMapped")
-        );
-    } else {
-        log::info!("Pair success");
-    }
-
-    let out_string = {
-        let output = Command::new("curl")
-            .arg("localhost/api/admin/getDeviceId")
-            .output()
-            .await?;
-
-        if output.stdout.is_empty() {
-            let buffer = std::fs::read_to_string("./pk.json")?;
-            let obj = json::parse(&buffer)?;
-            obj["pubkey"].as_str().unwrap_or_default().to_string()
-        } else {
-            String::from_utf8_lossy(&output.stdout).to_string()
+        .unwrap_or("".into());
+        log::info!("Get starting dpr res = {}", resp);
+        if !resp.contains("Ok") && !resp.contains("Account has more than 1 balance") {
+            panic!("Failed to get starting dpr");
         }
-    };
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        let balance = web3.eth().balance(wallet.address(), None).await?;
+        if balance / 1_000_000_000_000_000_000_u64 > 1_u64.into() {
+            break;
+        }
+    }
+    // let sub = sub_client::Substrate::new(&config.substrate_endpoint).await?;
+    // if let Err(e) = sub
+    //     .pair_eth2sub(wallet.clone(), &config.operator_phrase)
+    //     .await
+    // {
+    //     log::info!(
+    //         "Already paired to operator: {}",
+    //         format!("{:?}", e).contains("EthAddressHasMapped")
+    //     );
+    // } else {
+    //     log::info!("Pair success");
+    // }
+
+    let out_string = get_sn().await?;
 
     // Report health status every 60s
     log::info!("SN: {:?}", out_string);
@@ -227,7 +255,7 @@ pub async fn race_for_task(
 ) -> Result<(), anyhow::Error> {
     let contract = Contract::from_json(
         web3.eth(),
-        hex!("029698bae17dB8550A392D37bB9980c5b6949c53").into(),
+        hex!("48D1E091bc5eB638697A70d615a206A27a789225").into(),
         include_bytes!("../token.json"),
     )?;
     let result = contract
@@ -324,6 +352,7 @@ pub async fn inspect_chain_event(
                         for _ in 0..25 {
                             match race_for_task(web3_c.clone(), tid, eth_wallet.clone()).await {
                                 Ok(_) => {
+                                    log::info!("Race success {}", tid);
                                     let cmd = if raw_cmd == "" {
                                         None
                                     } else {
