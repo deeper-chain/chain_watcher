@@ -3,7 +3,7 @@ use core::panic;
 use docker_runner::{Docker, DockerRunner};
 use ethers::core::rand::thread_rng;
 use ethers::prelude::k256::ecdsa::SigningKey;
-use ethers::prelude::{Wallet, U256, U64};
+use ethers::prelude::{Wallet, U256};
 use ethers::signers::{LocalWallet, Signer};
 use hex::FromHex;
 use hex_literal::hex;
@@ -14,7 +14,6 @@ use std::default::Default;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
-use std::str::FromStr;
 use tokio::{join, process::Command};
 use web3::contract::{Contract, Options};
 use web3::{
@@ -180,18 +179,6 @@ async fn main() -> Result<()> {
             break;
         }
     }
-    // let sub = sub_client::Substrate::new(&config.substrate_endpoint).await?;
-    // if let Err(e) = sub
-    //     .pair_eth2sub(wallet.clone(), &config.operator_phrase)
-    //     .await
-    // {
-    //     log::info!(
-    //         "Already paired to operator: {}",
-    //         format!("{:?}", e).contains("EthAddressHasMapped")
-    //     );
-    // } else {
-    //     log::info!("Pair success");
-    // }
 
     let out_string = get_sn().await?;
 
