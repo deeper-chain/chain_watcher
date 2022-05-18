@@ -9,18 +9,15 @@ contract Oracle {
     uint public tokenMarketPrice;
 
     // Callback function
-    event CallbackGetTokenPrice();
+    event CallbackGetTokenPrice(uint currentTokenPrice);
 
     constructor() {
         owner = msg.sender;
     }
 
     function setTokenPrice(uint feedPrice) public {
-        // If it isn't sent by a trusted oracle
-        // a.k.a ourselves, ignore it
-        require(msg.sender == owner);
         tokenMarketPrice = feedPrice;
-        emit CallbackGetTokenPrice();
+        emit CallbackGetTokenPrice(tokenMarketPrice);
     }
 
     function getTokenPrice() view public returns (uint) {
