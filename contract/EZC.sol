@@ -1,7 +1,8 @@
-pragma solidity ^0.8.0;
+//SPDX-License-Identifier: Unlicense
+pragma solidity 0.8.12;
 
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP.
@@ -81,7 +82,7 @@ interface IERC20 {
     ) external returns (bool);
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/IERC20Metadata.sol)
 /**
  * @dev Interface for the optional metadata functions from the ERC20 standard.
@@ -105,7 +106,7 @@ interface IERC20Metadata is IERC20 {
     function decimals() external view returns (uint8);
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 /**
  * @dev Provides information about the current execution context, including the
@@ -127,7 +128,7 @@ abstract contract Context {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/ERC20.sol)
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -504,7 +505,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {}
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/extensions/ERC20Burnable.sol)
 /**
  * @dev Extension of {ERC20} that allows token holders to destroy both their own
@@ -538,7 +539,7 @@ abstract contract ERC20Burnable is Context, ERC20 {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (security/Pausable.sol)
 /**
  * @dev Contract module which allows children to implement an emergency stop
@@ -625,7 +626,7 @@ abstract contract Pausable is Context {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/ERC20Pausable.sol)
 /**
  * @dev ERC20 token with pausable token transfers, minting and burning.
@@ -653,7 +654,7 @@ abstract contract ERC20Pausable is ERC20, Pausable {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)
 /**
  * @dev External interface of AccessControl declared to support ERC165 detection.
@@ -739,7 +740,7 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 /**
  * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
@@ -766,7 +767,7 @@ interface IAccessControlEnumerable is IAccessControl {
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Strings.sol)
 /**
  * @dev String operations.
@@ -778,7 +779,8 @@ library Strings {
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
      */
     function toString(uint256 value) internal pure returns (string memory) {
-       
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
         if (value == 0) {
             return "0";
@@ -830,7 +832,7 @@ library Strings {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 /**
  * @dev Interface of the ERC165 standard, as defined in the
@@ -853,7 +855,7 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 /**
  * @dev Implementation of the {IERC165} interface.
@@ -878,7 +880,7 @@ abstract contract ERC165 is IERC165 {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (access/AccessControl.sol)
 /**
  * @dev Contract module that allows children to implement role-based access
@@ -1106,7 +1108,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (utils/structs/EnumerableSet.sol)
 /**
  * @dev Library for managing
@@ -1461,7 +1463,7 @@ library EnumerableSet {
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
 /**
  * @dev Extension of {AccessControl} that allows enumerating the members of each role.
@@ -1519,7 +1521,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     }
 }
 
- 
+// -License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/presets/ERC20PresetMinterPauser.sol)
 /**
  * @dev {ERC20} token, including:
@@ -1605,11 +1607,34 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
     }
 }
 
-contract EZC is ERC20PresetMinterPauser {
+contract EZCV2 is ERC20PresetMinterPauser{
+
 	constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
 
+    // Token MarketPrice Storage
+    uint public tokenMarketPrice;
+
+    event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
+
 	function _beforeTransfer(address from, address to, uint256 amount) internal {
-		require(balanceOf(to) + amount <= 100000, "EZC: Execeed max amount");
+		require(balanceOf(to) + amount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
 		super._beforeTokenTransfer(from, to, amount);
 	}
+
+	function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
+		uint256 price = getOraclePrice();
+		uint256 ezcAmount = dprAmount * price;
+		require(ezcAmount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
+		super.mint(to, ezcAmount);
+	}
+
+    function setTokenPrice(uint feedPrice) public {
+        tokenMarketPrice = feedPrice;
+        emit CallbackGetTokenPrice(tokenMarketPrice, block.timestamp);
+    }
+
+	function getOraclePrice() public view returns(uint256){
+		return tokenMarketPrice;
+	}
+
 }
