@@ -1609,32 +1609,32 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
 
 contract EZCV2 is ERC20PresetMinterPauser{
 
-	constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
+    constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
 
     // Token MarketPrice Storage
     uint public tokenMarketPrice;
 
     event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
 
-	function _beforeTransfer(address from, address to, uint256 amount) internal {
-		require(balanceOf(to) + amount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
-		super._beforeTokenTransfer(from, to, amount);
-	}
+    function _beforeTransfer(address from, address to, uint256 amount) internal {
+        require(balanceOf(to) + amount <= 100000, "EZC: Execeed max amount");
+        super._beforeTokenTransfer(from, to, amount);
+    }
 
-	function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
-		uint256 price = getOraclePrice();
-		uint256 ezcAmount = dprAmount * price;
-		require(ezcAmount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
-		super.mint(to, ezcAmount);
-	}
+    function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
+        uint256 price = getOraclePrice();
+        uint256 ezcAmount = (dprAmount * price * 100) / (10 ** 18);
+        require(ezcAmount <= 100000, "EZC: Execeed max amount");
+        super.mint(to, ezcAmount);
+    }
 
-    function setTokenPrice(uint feedPrice) public {
+    function setTokenPrice(uint256 feedPrice) public {
         tokenMarketPrice = feedPrice;
         emit CallbackGetTokenPrice(tokenMarketPrice, block.timestamp);
     }
 
-	function getOraclePrice() public view returns(uint256){
-		return tokenMarketPrice;
-	}
+    function getOraclePrice() public view returns(uint256){
+        return tokenMarketPrice;
+    }
 
 }
