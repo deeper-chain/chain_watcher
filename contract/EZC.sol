@@ -1617,14 +1617,14 @@ contract EZCV2 is ERC20PresetMinterPauser{
     event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
 
     function _beforeTransfer(address from, address to, uint256 amount) internal {
-        require(balanceOf(to) + amount <= 100000, "EZC: Execeed max amount");
+        require(balanceOf(to) + amount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
         super._beforeTokenTransfer(from, to, amount);
     }
 
     function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
         uint256 price = getOraclePrice();
-        uint256 ezcAmount = (dprAmount * price * 100) / (10 ** 18);
-        require(ezcAmount <= 100000, "EZC: Execeed max amount");
+        uint256 ezcAmount = (dprAmount * price * 100);
+        require(ezcAmount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
         super.mint(to, ezcAmount);
     }
 
