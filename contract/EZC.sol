@@ -1608,8 +1608,8 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
 
 contract EZCV2 is ERC20PresetMinterPauser{
 
-	 constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
-	 bytes32 public constant BUNER_ROLE = keccak256("Bunner_ROLE");
+    constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
+    bytes32 public constant BUNER_ROLE = keccak256("Bunner_ROLE");
 
     // Token MarketPrice Storage
     // Token MarketPrice Storage
@@ -1639,9 +1639,9 @@ contract EZCV2 is ERC20PresetMinterPauser{
     }
 
     function burnFromMachine(address user, uint256 amount) public returns(bool){
-         require(hasRole(BUNER_ROLE, _msgSender()), "Not Burner");
-         require(balanceOf(user) >= amount, "Not enough balance");
-         _burn(user, amount);
+        require(hasRole(BUNER_ROLE, _msgSender()), "Not Burner");
+        require(balanceOf(user) >= amount, "Not enough balance");
+        _burn(user, amount);
         return true;
      }
 
