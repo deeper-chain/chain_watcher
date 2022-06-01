@@ -1634,7 +1634,7 @@ contract DeeperMachine is AccessControlEnumerable {
         uint64 maxRunNum;
         uint64 startTime;
         uint64 currentRunningNum;
-        uint64 units;
+        uint256 units;
         address[] receivers;
     }
 
@@ -1643,17 +1643,17 @@ contract DeeperMachine is AccessControlEnumerable {
 
     mapping(uint64 => Task) public taskInfo;
 
-    mapping(address => mapping(uint64 => uint64)) public userDayReward;
+    mapping(address => mapping(uint64 => uint256)) public userDayReward;
     mapping(address => uint64) public userCheckPoint;
 
-    mapping(uint64 => uint64) public dayTotalReward;
+    mapping(uint64 => uint256) public dayTotalReward;
 
     mapping(address => uint64) public userSettledDay;
 
     uint64 public taskSum = 0;
     address public owner;
 
-    uint64 public proofUnit = 1 ether;
+    uint256 public proofUnit = 1 ether;
     uint64 public raceTimeout = 20 minutes;
     uint64 public completeTimeout = 48 hours;
     uint64 public startDay;
@@ -1688,7 +1688,7 @@ contract DeeperMachine is AccessControlEnumerable {
         ezc = _ezc;
     }
 
-    function setProofUnit(uint64 _proofUnit) external onlyOwner {
+    function setProofUnit(uint256 _proofUnit) external onlyOwner {
         proofUnit = _proofUnit;
     }
 
@@ -1709,7 +1709,7 @@ contract DeeperMachine is AccessControlEnumerable {
         userCheckPoint[_user] = _day;
     }
 
-    function getTaskUnits(uint64 maxRunNum) public view returns (uint64 taskUnits){
+    function getTaskUnits(uint64 maxRunNum) public view returns (uint256 taskUnits){
         if (maxRunNum == 0) {
             taskUnits = proofUnit * estimateRunNum;
         } else {
@@ -1718,7 +1718,7 @@ contract DeeperMachine is AccessControlEnumerable {
     }
 
     function publishTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external {
-        uint64 taskUnits = getTaskUnits(maxRunNum);
+        uint256 taskUnits = getTaskUnits(maxRunNum);
         ezc.burnFromMachine(_msgSender(), taskUnits);
         uint64 day = uint64(block.timestamp / 1 days);
         dayTotalReward[day] += taskUnits;
@@ -1770,29 +1770,29 @@ contract DeeperMachine is AccessControlEnumerable {
         userTaskCompleted[_msgSender()][taskId] = true;
 
         uint64 day = uint64(block.timestamp / 1 days);
-        uint64 payment = taskInfo[taskId].units / taskInfo[taskId].currentRunningNum;
+        uint256 payment = taskInfo[taskId].units / taskInfo[taskId].currentRunningNum;
         userDayReward[_msgSender()][day] += payment;
         taskInfo[taskId].units -= payment;
         taskInfo[taskId].currentRunningNum--;
     }
 
-    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint64){
+    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint256){
         return userDayReward[user][theDay];
     }
 
-    function getMyRewardForDay(uint64 theDay) public view returns (uint64){
+    function getMyRewardForDay(uint64 theDay) public view returns (uint256){
         return getUserRewardForDay(_msgSender(), theDay);
     }
 
-    function getUserContributionForDay(address user, uint64 theDay) public view returns (uint64){
+    function getUserContributionForDay(address user, uint64 theDay) public view returns (uint256){
         return getUserRewardForDay(user, theDay) * 10000 / getTotalRewardForDay(theDay);
     }
 
-    function getMyContributionForDay(uint64 theDay) public view returns (uint64){
+    function getMyContributionForDay(uint64 theDay) public view returns (uint256){
         return getUserContributionForDay(_msgSender(), theDay);
     }
 
-    function getTotalRewardForDay(uint64 theDay) public view returns (uint64){
+    function getTotalRewardForDay(uint64 theDay) public view returns (uint256){
         return dayTotalReward[theDay];
     }
 
