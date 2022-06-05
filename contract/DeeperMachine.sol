@@ -1717,11 +1717,11 @@ contract DeeperMachine is AccessControlEnumerable {
         }
     }
 
-    function publishTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external {
+    function publishTask(string calldata url, string calldata options, uint64 maxRunNum, address[] calldata receivers) external {
         uint256 taskUnits = getTaskUnits(maxRunNum);
         ezc.burnFromMachine(_msgSender(), taskUnits);
-        uint64 day = currentDay();
-        dayTotalReward[day] += taskUnits;
+        
+        dayTotalReward[currentDay()] += taskUnits;
         taskSum = taskSum + 1;
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
@@ -1733,7 +1733,7 @@ contract DeeperMachine is AccessControlEnumerable {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
     }
 
-    function resetRunners(address[] memory receivers) external {
+    function resetRunners(address[] calldata receivers) external {
         emit ResetRunners(receivers);
     }
 
@@ -1742,9 +1742,11 @@ contract DeeperMachine is AccessControlEnumerable {
         require(taskInfo[taskId].maxRunNum >= taskInfo[taskId].currentRunNum + 1, "Task has been filled");
         require(taskInfo[taskId].startTime + raceTimeout >= currenTime(), "Task race has been expired");
 
-        if (taskInfo[taskId].receivers.length > 0) {
+        uint len = taskInfo[taskId].receivers.length;
+        if (len > 0) {
             bool exists = false;
-            for (uint i = 0; i < taskInfo[taskId].receivers.length; i++) {
+            
+            for (uint i = 0; i < len; ++i) {
                 if (taskInfo[taskId].receivers[i] == _msgSender()) {
                     exists = true;
                     break;
@@ -1769,9 +1771,8 @@ contract DeeperMachine is AccessControlEnumerable {
 
         userTaskCompleted[_msgSender()][taskId] = true;
 
-        uint64 day = currentDay();
         uint256 payment = taskInfo[taskId].units / taskInfo[taskId].currentRunningNum;
-        userDayReward[_msgSender()][day] += payment;
+        userDayReward[_msgSender()][currentDay()] += payment;
         taskInfo[taskId].units -= payment;
         taskInfo[taskId].currentRunningNum--;
     }
