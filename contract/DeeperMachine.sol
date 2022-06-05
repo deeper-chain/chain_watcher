@@ -1667,7 +1667,7 @@ contract DeeperMachine is AccessControlEnumerable {
         _setupRole(REWARD_CHECKER_ROLE, _msgSender());
 
         owner = _msgSender();
-        startDay = currentDay();
+        startDay = getCurrentDay();
         ezc = _ezc;
     }
 
@@ -1721,13 +1721,13 @@ contract DeeperMachine is AccessControlEnumerable {
         uint256 taskUnits = getTaskUnits(maxRunNum);
         ezc.burnFromMachine(_msgSender(), taskUnits);
         
-        dayTotalReward[currentDay()] += taskUnits;
+        dayTotalReward[getCurrentDay()] += taskUnits;
         taskSum = taskSum + 1;
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
         taskInfo[taskSum].units = taskUnits;
-        taskInfo[taskSum].startTime = currenTime();
+        taskInfo[taskSum].startTime = getCurrenTime();
         taskInfo[taskSum].receivers = receivers;
 
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
@@ -1740,7 +1740,7 @@ contract DeeperMachine is AccessControlEnumerable {
     function raceSubIndexForTask(uint64 taskId) external {
         require(taskSum >= taskId, "Invalid taskId");
         require(taskInfo[taskId].maxRunNum >= taskInfo[taskId].currentRunNum + 1, "Task has been filled");
-        require(taskInfo[taskId].startTime + raceTimeout >= currenTime(), "Task race has been expired");
+        require(taskInfo[taskId].startTime + raceTimeout >= getCurrenTime(), "Task race has been expired");
 
         uint len = taskInfo[taskId].receivers.length;
         if (len > 0) {
@@ -1767,21 +1767,21 @@ contract DeeperMachine is AccessControlEnumerable {
     function completeSubIndexForTask(uint64 taskId) external {
         require(userTask[_msgSender()][taskId], "Invalid taskId or task not raced");
         require(!userTaskCompleted[_msgSender()][taskId], "Sub task has been completed");
-        require(taskInfo[taskId].startTime + completeTimeout >= currenTime(), "Task has been expired");
+        require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task has been expired");
 
         userTaskCompleted[_msgSender()][taskId] = true;
 
         uint256 payment = taskInfo[taskId].units / taskInfo[taskId].currentRunningNum;
-        userDayReward[_msgSender()][currentDay()] += payment;
+        userDayReward[_msgSender()][getCurrentDay()] += payment;
         taskInfo[taskId].units -= payment;
         taskInfo[taskId].currentRunningNum--;
     }
 
-    function currentDay() public view returns (uint64) {
+    function getCurrentDay() public view returns (uint64) {
         return uint64(block.timestamp / 1 days);
     }
 
-    function currenTime() public view returns (uint64) {
+    function getCurrenTime() public view returns (uint64) {
         return uint64(block.timestamp);
     }
 
