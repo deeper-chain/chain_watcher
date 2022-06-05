@@ -1628,6 +1628,7 @@ contract DeeperMachine is AccessControlEnumerable {
     event RaceTask(address node, uint64 taskId);
     event ResetRunners(address[] receivers);
     event UpdateRunner(string version);
+    event StopTask(uint taskId);
 
     struct Task {
         uint64 currentRunNum;
@@ -1735,6 +1736,10 @@ contract DeeperMachine is AccessControlEnumerable {
 
     function resetRunners(address[] calldata receivers) external {
         emit ResetRunners(receivers);
+    }
+
+    function stopTask(uint64 taskId) external {
+        emit StopTask(taskId);
     }
 
     function raceSubIndexForTask(uint64 taskId) external {
