@@ -1735,7 +1735,7 @@ contract DeeperMachine is AccessControlEnumerable {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
     }
 
-    function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers) internal virtual returns(bool) {
+    function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers) private returns(bool) {
         taskSum = taskSum + 1;
         dayTotalReward[getCurrentDay()] += taskProof;
         taskInfo[taskSum].maxRunNum = maxRunNum;
