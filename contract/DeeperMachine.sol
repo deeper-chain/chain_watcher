@@ -1615,7 +1615,7 @@ interface IEZC {
      */
     function burnFrom(address account, uint256 amount) external;
 
-    function burnFromMachine(address account, uint256 amount) external returns (bool);
+    function burnFromMachine(address account, uint256 amount) external returns (uint256);
 
 }
 
@@ -1710,28 +1710,41 @@ contract DeeperMachine is AccessControlEnumerable {
         userCheckPoint[_user] = _day;
     }
 
-    function getTaskUnits(uint64 maxRunNum) public view returns (uint256 taskUnits){
-        if (maxRunNum == 0) {
-            taskUnits = proofUnit * estimateRunNum;
-        } else {
-            taskUnits = proofUnit * maxRunNum;
-        }
+    function fullNodeTask(string calldata url, string calldata options) external {
+        address[] memory receivers;
+
+        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * estimateRunNum);
+        _assemblyTask(taskProof, 0, receivers);
+
+        emit TaskPublished(taskSum, url, options, 0, receivers);
     }
 
-    function publishTask(string calldata url, string calldata options, uint64 maxRunNum, address[] calldata receivers) external {
-        uint256 taskUnits = getTaskUnits(maxRunNum);
-        ezc.burnFromMachine(_msgSender(), taskUnits);
-        
-        dayTotalReward[getCurrentDay()] += taskUnits;
+    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum) external {
+        address[] memory receivers;
+
+        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
+        _assemblyTask(taskProof, maxRunNum, receivers);
+
+        emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
+    }
+
+    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external {
+        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
+        _assemblyTask(taskProof, maxRunNum, receivers);
+
+        emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
+    }
+
+    function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers) internal virtual returns(bool) {
         taskSum = taskSum + 1;
+        dayTotalReward[getCurrentDay()] += taskProof;
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
-        taskInfo[taskSum].units = taskUnits;
+        taskInfo[taskSum].units = taskProof;
         taskInfo[taskSum].startTime = getCurrenTime();
         taskInfo[taskSum].receivers = receivers;
-
-        emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
+        return true;
     }
 
     function resetRunners(address[] calldata receivers) external {

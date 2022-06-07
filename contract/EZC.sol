@@ -1638,10 +1638,10 @@ contract EZCV2 is ERC20PresetMinterPauser{
         return tokenMarketPrice;
     }
 
-    function burnFromMachine(address user, uint256 amount) public returns(bool){
+    function burnFromMachine(address user, uint256 ezcBurnAmount) public returns(uint256){
 		require(hasRole(BUNER_ROLE, _msgSender()), "Not Burner");
-		require(balanceOf(user) >= amount, "Not enough balance");
-		_burn(user, amount);
-        return true;
+		require(balanceOf(user) >= ezcBurnAmount, "Not enough balance");
+		_burn(user, ezcBurnAmount);
+        return ezcBurnAmount;
 	}
 }
