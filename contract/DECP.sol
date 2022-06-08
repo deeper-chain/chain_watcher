@@ -1683,11 +1683,11 @@ contract DECP is AccessControlEnumerable {
     }
 
     modifier initTask(uint64 maxRunNum, address[] memory receivers) {
-        uint256 taskPrice = 0;
-        if(maxRunNum > 0) taskPrice = proofUnit * maxRunNum;
-        else taskPrice = proofUnit * estimateRunNum;
+        uint256 taskTotalPrice = 0;
+        if(maxRunNum > 0) taskTotalPrice = proofUnit * maxRunNum;
+        else taskTotalPrice = proofUnit * estimateRunNum;
 
-        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
+        uint256 taskProof = ezc.burnFromMachine(_msgSender(), taskTotalPrice);
         _assemblyTask(taskProof, maxRunNum, receivers);
         _;
     }
