@@ -1651,14 +1651,19 @@ contract DECP is AccessControlEnumerable {
 
     mapping(address => uint64) public userSettledDay;
 
+    //Initialization parameters
     uint64 public taskSum = 0;
+    uint64 public initRunNum = 0;
+    uint64 public startDay = 0;
     address public owner;
+    address[] initReceivers;
 
+    //Configuration parameters
     uint256 public proofUnit = 1 ether;
     uint64 public raceTimeout = 20 minutes;
     uint64 public completeTimeout = 48 hours;
-    uint64 public startDay;
     uint64 public estimateRunNum = 1000;
+    
 
     IEZC ezc;
     constructor(IEZC _ezc) {
@@ -1674,6 +1679,16 @@ contract DECP is AccessControlEnumerable {
 
     modifier onlyOwner {
         require(_msgSender() == owner, "not owner address");
+        _;
+    }
+
+    modifier initTask(uint64 maxRunNum, address[] memory receivers) {
+        uint256 taskPrice = 0;
+        if(maxRunNum > 0) taskPrice = proofUnit * maxRunNum;
+        else taskPrice = proofUnit * estimateRunNum;
+
+        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
+        _assemblyTask(taskProof, maxRunNum, receivers);
         _;
     }
 
@@ -1710,28 +1725,15 @@ contract DECP is AccessControlEnumerable {
         userCheckPoint[_user] = _day;
     }
 
-    function fullNodeTask(string calldata url, string calldata options) external {
-        address[] memory receivers;
-
-        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * estimateRunNum);
-        _assemblyTask(taskProof, 0, receivers);
-
-        emit TaskPublished(taskSum, url, options, 0, receivers);
+    function fullNodeTask(string calldata url, string calldata options) external initTask(initRunNum, initReceivers) {
+        emit TaskPublished(taskSum, url, options, initRunNum, initReceivers);
     }
 
-    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum) external {
-        address[] memory receivers;
-
-        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
-        _assemblyTask(taskProof, maxRunNum, receivers);
-
-        emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
+    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum) external initTask(maxRunNum, initReceivers) {
+        emit TaskPublished(taskSum, url, options, maxRunNum, initReceivers);
     }
 
-    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external {
-        uint256 taskProof = ezc.burnFromMachine(_msgSender(), proofUnit * maxRunNum);
-        _assemblyTask(taskProof, maxRunNum, receivers);
-
+    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external initTask(maxRunNum, receivers) {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
     }
 
