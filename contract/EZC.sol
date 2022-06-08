@@ -1607,7 +1607,7 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
     }
 }
 
-contract EZCV2 is ERC20PresetMinterPauser{
+contract EZC is ERC20PresetMinterPauser{
 
     constructor() ERC20PresetMinterPauser("Easy token", "EZC") {}
     bytes32 public constant BUNER_ROLE = keccak256("Bunner_ROLE");
@@ -1616,6 +1616,10 @@ contract EZCV2 is ERC20PresetMinterPauser{
     uint public tokenMarketPrice;
 
     event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
+
+    function implementationVersion() external pure virtual returns (string memory) {
+        return "1.0.2";
+    }
 
     function _beforeTransfer(address from, address to, uint256 amount) internal {
         require(balanceOf(to) + amount <= 100000 * 10 ** 18, "EZC: Execeed max amount");

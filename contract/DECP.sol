@@ -1697,7 +1697,7 @@ contract DECP is AccessControlEnumerable {
     }
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.1";
+        return "1.0.2";
     }
 
     function setEZC(IEZC _ezc) external onlyOwner {
