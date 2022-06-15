@@ -1724,8 +1724,8 @@ contract DEP is AccessControlEnumerable {
         blockUintPrice = _blockUnitPrice;
     }
 
-    function setAddressWhitelist(address _permissionAddress) external onlyOwner {
-        addressWhitelist[_permissionAddress] = true;
+    function setAddressWhitelist(address _permissionAddress, bool _authorization) external onlyOwner {
+        addressWhitelist[_permissionAddress] = _authorization;
     }
 
     function updateRewardPoint(address _user, uint64 _day) external onlyOwner {
