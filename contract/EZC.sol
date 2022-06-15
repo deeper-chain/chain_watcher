@@ -109,7 +109,7 @@ interface IERC20Metadata is IERC20 {
 // -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 /**
- * @dev Provides information about the current execution context, including the
+ * @dev Provides information about the current execution Context, including the
  * sender of the transaction and its data. While these are generally available
  * via msg.sender and msg.data, they should not be accessed in such a direct
  * manner, since when dealing with meta-transactions the account sending and
@@ -138,7 +138,7 @@ abstract contract Context {
  * For a generic mechanism see {ERC20PresetMinterPauser}.
  *
  * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
+ * https://forum.zeppelin.solutions/t/how-to-implement-ERC20-supply-mechanisms/226[How
  * to implement supply mechanisms].
  *
  * We have followed general OpenZeppelin Contracts guidelines: functions revert
@@ -547,7 +547,7 @@ abstract contract ERC20Burnable is Context, ERC20 {
  *
  * This module is used through inheritance. It will make available the
  * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
+ * the functions of your contract. Note that they will not be Pausable by
  * simply including this module, only once the modifiers are put in place.
  */
 abstract contract Pausable is Context {
@@ -629,7 +629,7 @@ abstract contract Pausable is Context {
 // -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/ERC20Pausable.sol)
 /**
- * @dev ERC20 token with pausable token transfers, minting and burning.
+ * @dev ERC20 token with Pausable token transfers, minting and burning.
  *
  * Useful for scenarios such as preventing trades until the end of an evaluation
  * period, or having an emergency switch for freezing all token transfers in the
@@ -1109,7 +1109,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (utils/structs/EnumerableSet.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (utils/structs/enumerableset.sol)
 /**
  * @dev Library for managing
  * https://en.wikipedia.org/wiki/Set_(abstract_data_type)[sets] of primitive
@@ -1124,17 +1124,17 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
  * ```
  * contract Example {
  *     // Add the library methods
- *     using EnumerableSet for EnumerableSet.AddressSet;
+ *     using enumerableset for enumerableset.AddressSet;
  *
  *     // Declare a set state variable
- *     EnumerableSet.AddressSet private mySet;
+ *     enumerableset.AddressSet private mySet;
  * }
  * ```
  *
  * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
  * and `uint256` (`UintSet`) are supported.
  */
-library EnumerableSet {
+library enumerableset {
     // To implement this library for multiple types with as little code
     // repetition as possible, we write it in terms of a generic Set type with
     // bytes32 values.
@@ -1469,9 +1469,9 @@ library EnumerableSet {
  * @dev Extension of {AccessControl} that allows enumerating the members of each role.
  */
 abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessControl {
-    using EnumerableSet for EnumerableSet.AddressSet;
+    using enumerableset for enumerableset.AddressSet;
 
-    mapping(bytes32 => EnumerableSet.AddressSet) private _roleMembers;
+    mapping(bytes32 => enumerableset.AddressSet) private _roleMembers;
 
     /**
      * @dev See {IERC165-supportsInterface}.
@@ -1618,7 +1618,7 @@ contract EZC is ERC20PresetMinterPauser{
     event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.2";
+        return "1.0.3";
     }
 
     function _beforeTransfer(address from, address to, uint256 amount) internal {
@@ -1629,7 +1629,7 @@ contract EZC is ERC20PresetMinterPauser{
     function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
         uint256 price = getOraclePrice();
         uint256 ezcAmount = (dprAmount * price * 100);
-        require(ezcAmount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
+        require(balanceOf(to) <= 100000 * 10 ** 18, "EZC: Execeed max amount");
         super.mint(to, ezcAmount);
     }
 
