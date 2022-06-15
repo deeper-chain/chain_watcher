@@ -1624,11 +1624,11 @@ contract DEP is AccessControlEnumerable {
     bytes32 public constant REWARD_CHECKER_ROLE = keccak256("REWARD_CHECKER_ROLE");
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
-    event TaskPublished(uint64 taskId, string url, string options, uint64 maxRunNum, address[] receivers, uint64 maintainBlocks);
-    event RaceTask(address node, uint64 taskId);
-    event ResetRunners(address[] receivers);
-    event UpdateRunner(string version);
     event StopTask(uint taskId);
+    event UpdateRunner(string version);
+    event ResetRunners(address[] receivers);
+    event RaceTask(address node, uint64 taskId);
+    event TaskPublished(uint64 taskId, string url, string options, uint64 maxRunNum, address[] receivers, uint64 maintainBlocks);
 
     struct Task {
         uint64 currentRunNum;
@@ -1640,15 +1640,15 @@ contract DEP is AccessControlEnumerable {
         address[] receivers;
     }
 
-    mapping(address => mapping(uint64 => bool)) public userTask;
-    mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
     mapping(uint64 => Task) public taskInfo;
-    mapping(address => mapping(uint64 => uint256)) public userDayReward;
-    mapping(address => uint64) public userCheckPoint;
+    mapping(address => bool) public addressWhitelist;
     mapping(uint64 => uint256) public dayTotalReward;
     mapping(address => uint64) public userSettledDay;
-    mapping(address => bool) public addressWhitelist;
-
+    mapping(address => uint64) public userRewardPoint;
+    mapping(address => mapping(uint64 => bool)) public userTask;
+    mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
+    mapping(address => mapping(uint64 => uint256)) public userDayReward;
+    
     //Initialization parameters
     uint64 public taskSum = 0;
     uint64 public initRunNum = 0;
@@ -1728,13 +1728,8 @@ contract DEP is AccessControlEnumerable {
         addressWhitelist[_permissionAddress] = true;
     }
 
-    function getRewardPoint(address _user) public view returns (uint64 _day) {
-        _day = userCheckPoint[_user];
-        if (_day == 0) _day = startDay;
-    }
-
-    function updateRewardPoint(address _user, uint64 _day) external onlyRole(REWARD_CHECKER_ROLE) {
-        userCheckPoint[_user] = _day;
+    function updateRewardPoint(address _user, uint64 _day) external onlyOwner {
+        userRewardPoint[_user] = _day;
     }
 
     function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, uint64 maintainBlocks) external initTask(maxRunNum, initReceivers, maintainBlocks) {
@@ -1812,20 +1807,12 @@ contract DEP is AccessControlEnumerable {
         return uint64(block.timestamp);
     }
 
-    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint256){
+    function getUserRewardPointer(address _user) public view onlyOwner returns (uint64) {
+        return userRewardPoint[_user];
+    }
+
+    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint256) {
         return userDayReward[user][theDay];
-    }
-
-    function getMyRewardForDay(uint64 theDay) public view returns (uint256){
-        return getUserRewardForDay(_msgSender(), theDay);
-    }
-
-    function getUserContributionForDay(address user, uint64 theDay) public view returns (uint256){
-        return getUserRewardForDay(user, theDay) * 10000 / getTotalRewardForDay(theDay);
-    }
-
-    function getMyContributionForDay(uint64 theDay) public view returns (uint256){
-        return getUserContributionForDay(_msgSender(), theDay);
     }
 
     function getTotalRewardForDay(uint64 theDay) public view returns (uint256){
