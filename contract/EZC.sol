@@ -3,9 +3,9 @@ pragma solidity 0.8.12;
 
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC201/IERC20.sol)
 /**
- * @dev Interface of the ERC20 standard as defined in the EIP.
+ * @dev Interface of the ERC201 standard as defined in the EIP.
  */
 interface IERC20 {
     /**
@@ -83,9 +83,9 @@ interface IERC20 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/IERC20Metadata.sol)
+// OpenZeppelin Contracts v4.4.1 (token/ERC201/extensions/IERC20Metadata.sol)
 /**
- * @dev Interface for the optional metadata functions from the ERC20 standard.
+ * @dev Interface for the optional metadata functions from the ERC201 standard.
  *
  * _Available since v4.1._
  */
@@ -107,9 +107,9 @@ interface IERC20Metadata is IERC20 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context1.sol)
 /**
- * @dev Provides information about the current execution context, including the
+ * @dev Provides information about the current execution Context1, including the
  * sender of the transaction and its data. While these are generally available
  * via msg.sender and msg.data, they should not be accessed in such a direct
  * manner, since when dealing with meta-transactions the account sending and
@@ -118,7 +118,7 @@ interface IERC20Metadata is IERC20 {
  *
  * This contract is only required for intermediate, library-like contracts.
  */
-abstract contract Context {
+abstract contract Context1 {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
@@ -129,7 +129,7 @@ abstract contract Context {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/ERC20.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC201/ERC201.sol)
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -138,12 +138,12 @@ abstract contract Context {
  * For a generic mechanism see {ERC20PresetMinterPauser}.
  *
  * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
+ * https://forum.zeppelin.solutions/t/how-to-implement-ERC201-supply-mechanisms/226[How
  * to implement supply mechanisms].
  *
  * We have followed general OpenZeppelin Contracts guidelines: functions revert
  * instead returning `false` on failure. This behavior is nonetheless
- * conventional and does not conflict with the expectations of ERC20
+ * conventional and does not conflict with the expectations of ERC201
  * applications.
  *
  * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
@@ -155,7 +155,7 @@ abstract contract Context {
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ERC20 is Context, IERC20, IERC20Metadata {
+contract ERC201 is Context1, IERC20, IERC20Metadata {
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
@@ -200,7 +200,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * be displayed to a user as `5.05` (`505 / 10 ** 2`).
      *
      * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei. This is the value {ERC20} uses, unless this function is
+     * Ether and Wei. This is the value {ERC201} uses, unless this function is
      * overridden;
      *
      * NOTE: This information is only used for _display_ purposes: it in
@@ -266,7 +266,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * @dev See {IERC20-transferFrom}.
      *
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20}.
+     * required by the EIP. See the note at the beginning of {ERC201}.
      *
      * NOTE: Does not update the allowance if the current allowance
      * is the maximum `uint256`.
@@ -324,7 +324,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
         address owner = _msgSender();
         uint256 currentAllowance = allowance(owner, spender);
-        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+        require(currentAllowance >= subtractedValue, "ERC201: decreased allowance below zero");
         unchecked {
             _approve(owner, spender, currentAllowance - subtractedValue);
         }
@@ -351,13 +351,13 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         address to,
         uint256 amount
     ) internal virtual {
-        require(from != address(0), "ERC20: transfer from the zero address");
-        require(to != address(0), "ERC20: transfer to the zero address");
+        require(from != address(0), "ERC201: transfer from the zero address");
+        require(to != address(0), "ERC201: transfer to the zero address");
 
         _beforeTokenTransfer(from, to, amount);
 
         uint256 fromBalance = _balances[from];
-        require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
+        require(fromBalance >= amount, "ERC201: transfer amount exceeds balance");
         unchecked {
             _balances[from] = fromBalance - amount;
         }
@@ -378,7 +378,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * - `account` cannot be the zero address.
      */
     function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
+        require(account != address(0), "ERC201: mint to the zero address");
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -401,12 +401,12 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * - `account` must have at least `amount` tokens.
      */
     function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
+        require(account != address(0), "ERC201: burn from the zero address");
 
         _beforeTokenTransfer(account, address(0), amount);
 
         uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        require(accountBalance >= amount, "ERC201: burn amount exceeds balance");
         unchecked {
             _balances[account] = accountBalance - amount;
         }
@@ -435,8 +435,8 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         address spender,
         uint256 amount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+        require(owner != address(0), "ERC201: approve from the zero address");
+        require(spender != address(0), "ERC201: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
@@ -457,7 +457,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {
         uint256 currentAllowance = allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "ERC20: insufficient allowance");
+            require(currentAllowance >= amount, "ERC201: insufficient allowance");
             unchecked {
                 _approve(owner, spender, currentAllowance - amount);
             }
@@ -506,17 +506,17 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/extensions/ERC20Burnable.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC201/extensions/ERC20Burnable1.sol)
 /**
- * @dev Extension of {ERC20} that allows token holders to destroy both their own
+ * @dev Extension of {ERC201} that allows token holders to destroy both their own
  * tokens and those that they have an allowance for, in a way that can be
  * recognized off-chain (via event analysis).
  */
-abstract contract ERC20Burnable is Context, ERC20 {
+abstract contract ERC20Burnable1 is Context1, ERC201 {
     /**
      * @dev Destroys `amount` tokens from the caller.
      *
-     * See {ERC20-_burn}.
+     * See {ERC201-_burn}.
      */
     function burn(uint256 amount) public virtual {
         _burn(_msgSender(), amount);
@@ -526,7 +526,7 @@ abstract contract ERC20Burnable is Context, ERC20 {
      * @dev Destroys `amount` tokens from `account`, deducting from the caller's
      * allowance.
      *
-     * See {ERC20-_burn} and {ERC20-allowance}.
+     * See {ERC201-_burn} and {ERC201-allowance}.
      *
      * Requirements:
      *
@@ -540,17 +540,17 @@ abstract contract ERC20Burnable is Context, ERC20 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (security/Pausable.sol)
+// OpenZeppelin Contracts v4.4.1 (security/Pausable1.sol)
 /**
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
  *
  * This module is used through inheritance. It will make available the
  * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
+ * the functions of your contract. Note that they will not be Pausable1 by
  * simply including this module, only once the modifiers are put in place.
  */
-abstract contract Pausable is Context {
+abstract contract Pausable1 is Context1 {
     /**
      * @dev Emitted when the pause is triggered by `account`.
      */
@@ -585,7 +585,7 @@ abstract contract Pausable is Context {
      * - The contract must not be paused.
      */
     modifier whenNotPaused() {
-        require(!paused(), "Pausable: paused");
+        require(!paused(), "Pausable1: paused");
         _;
     }
 
@@ -597,7 +597,7 @@ abstract contract Pausable is Context {
      * - The contract must be paused.
      */
     modifier whenPaused() {
-        require(paused(), "Pausable: not paused");
+        require(paused(), "Pausable1: not paused");
         _;
     }
 
@@ -627,17 +627,17 @@ abstract contract Pausable is Context {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/ERC20Pausable.sol)
+// OpenZeppelin Contracts v4.4.1 (token/ERC201/extensions/ERC20Pausable1.sol)
 /**
- * @dev ERC20 token with pausable token transfers, minting and burning.
+ * @dev ERC201 token with Pausable1 token transfers, minting and burning.
  *
  * Useful for scenarios such as preventing trades until the end of an evaluation
  * period, or having an emergency switch for freezing all token transfers in the
  * event of a large bug.
  */
-abstract contract ERC20Pausable is ERC20, Pausable {
+abstract contract ERC20Pausable1 is ERC201, Pausable1 {
     /**
-     * @dev See {ERC20-_beforeTokenTransfer}.
+     * @dev See {ERC201-_beforeTokenTransfer}.
      *
      * Requirements:
      *
@@ -650,14 +650,14 @@ abstract contract ERC20Pausable is ERC20, Pausable {
     ) internal virtual override {
         super._beforeTokenTransfer(from, to, amount);
 
-        require(!paused(), "ERC20Pausable: token transfer while paused");
+        require(!paused(), "ERC20Pausable1: token transfer while paused");
     }
 }
 
 // -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)
 /**
- * @dev External interface of AccessControl declared to support ERC165 detection.
+ * @dev External interface of AccessControl1 declared to support ERC1651 detection.
  */
 interface IAccessControl {
     /**
@@ -674,7 +674,7 @@ interface IAccessControl {
      * @dev Emitted when `account` is granted `role`.
      *
      * `sender` is the account that originated the contract call, an admin role
-     * bearer except when using {AccessControl-_setupRole}.
+     * bearer except when using {AccessControl1-_setupRole}.
      */
     event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
 
@@ -696,7 +696,7 @@ interface IAccessControl {
      * @dev Returns the admin role that controls `role`. See {grantRole} and
      * {revokeRole}.
      *
-     * To change a role's admin, use {AccessControl-_setRoleAdmin}.
+     * To change a role's admin, use {AccessControl1-_setRoleAdmin}.
      */
     function getRoleAdmin(bytes32 role) external view returns (bytes32);
 
@@ -743,7 +743,7 @@ interface IAccessControl {
 // -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 /**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ * @dev External interface of AccessControlEnumerable1 declared to support ERC1651 detection.
  */
 interface IAccessControlEnumerable is IAccessControl {
     /**
@@ -755,7 +755,7 @@ interface IAccessControlEnumerable is IAccessControl {
      *
      * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
      * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-EnumerableSet1-in-openzeppelin-contracts/2296[forum post]
      * for more information.
      */
     function getRoleMember(bytes32 role, uint256 index) external view returns (address);
@@ -768,11 +768,11 @@ interface IAccessControlEnumerable is IAccessControl {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Strings.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Strings1.sol)
 /**
  * @dev String operations.
  */
-library Strings {
+library Strings1 {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
 
     /**
@@ -827,7 +827,7 @@ library Strings {
             buffer[i] = _HEX_SYMBOLS[value & 0xf];
             value >>= 4;
         }
-        require(value == 0, "Strings: hex length insufficient");
+        require(value == 0, "Strings1: hex length insufficient");
         return string(buffer);
     }
 }
@@ -835,13 +835,13 @@ library Strings {
 // -License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 /**
- * @dev Interface of the ERC165 standard, as defined in the
+ * @dev Interface of the ERC1651 standard, as defined in the
  * https://eips.ethereum.org/EIPS/eip-165[EIP].
  *
  * Implementers can declare support of contract interfaces, which can then be
  * queried by others ({ERC165Checker}).
  *
- * For an implementation, see {ERC165}.
+ * For an implementation, see {ERC1651}.
  */
 interface IERC165 {
     /**
@@ -856,11 +856,11 @@ interface IERC165 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC1651.sol)
 /**
  * @dev Implementation of the {IERC165} interface.
  *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * Contracts that want to implement ERC1651 should inherit from this contract and override {supportsInterface} to check
  * for the additional interface id that will be supported. For example:
  *
  * ```solidity
@@ -871,7 +871,7 @@ interface IERC165 {
  *
  * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
  */
-abstract contract ERC165 is IERC165 {
+abstract contract ERC1651 is IERC165 {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
@@ -881,13 +881,13 @@ abstract contract ERC165 is IERC165 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (access/AccessControl.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (access/AccessControl1.sol)
 /**
  * @dev Contract module that allows children to implement role-based access
  * control mechanisms. This is a lightweight version that doesn't allow enumerating role
  * members except through off-chain means by accessing the contract event logs. Some
  * applications may benefit from on-chain enumerability, for those cases see
- * {AccessControlEnumerable}.
+ * {AccessControlEnumerable1}.
  *
  * Roles are referred to by their `bytes32` identifier. These should be exposed
  * in the external API and be unique. The best way to achieve this is by
@@ -920,7 +920,7 @@ abstract contract ERC165 is IERC165 {
  * grant and revoke this role. Extra precautions should be taken to secure
  * accounts that have been granted it.
  */
-abstract contract AccessControl is Context, IAccessControl, ERC165 {
+abstract contract AccessControl1 is Context1, IAccessControl, ERC1651 {
     struct RoleData {
         mapping(address => bool) members;
         bytes32 adminRole;
@@ -936,7 +936,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      * The format of the revert reason is given by the following regular expression:
      *
-     *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
+     *  /^AccessControl1: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
      *
      * _Available since v4.1._
      */
@@ -976,17 +976,17 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      * The format of the revert reason is given by the following regular expression:
      *
-     *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
+     *  /^AccessControl1: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
      */
     function _checkRole(bytes32 role, address account) internal view virtual {
         if (!hasRole(role, account)) {
             revert(
                 string(
                     abi.encodePacked(
-                        "AccessControl: account ",
-                        Strings.toHexString(uint160(account), 20),
+                        "AccessControl1: account ",
+                        Strings1.toHexString(uint160(account), 20),
                         " is missing role ",
-                        Strings.toHexString(uint256(role), 32)
+                        Strings1.toHexString(uint256(role), 32)
                     )
                 )
             );
@@ -1045,7 +1045,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * - the caller must be `account`.
      */
     function renounceRole(bytes32 role, address account) public virtual override {
-        require(account == _msgSender(), "AccessControl: can only renounce roles for self");
+        require(account == _msgSender(), "AccessControl1: can only renounce roles for self");
 
         _revokeRole(role, account);
     }
@@ -1063,7 +1063,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * up the initial roles for the system.
      *
      * Using this function in any other way is effectively circumventing the admin
-     * system imposed by {AccessControl}.
+     * system imposed by {AccessControl1}.
      * ====
      *
      * NOTE: This function is deprecated in favor of {_grantRole}.
@@ -1109,7 +1109,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (utils/structs/EnumerableSet.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (utils/structs/EnumerableSet1.sol)
 /**
  * @dev Library for managing
  * https://en.wikipedia.org/wiki/Set_(abstract_data_type)[sets] of primitive
@@ -1124,17 +1124,17 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
  * ```
  * contract Example {
  *     // Add the library methods
- *     using EnumerableSet for EnumerableSet.AddressSet;
+ *     using EnumerableSet1 for EnumerableSet1.AddressSet;
  *
  *     // Declare a set state variable
- *     EnumerableSet.AddressSet private mySet;
+ *     EnumerableSet1.AddressSet private mySet;
  * }
  * ```
  *
  * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
  * and `uint256` (`UintSet`) are supported.
  */
-library EnumerableSet {
+library EnumerableSet1 {
     // To implement this library for multiple types with as little code
     // repetition as possible, we write it in terms of a generic Set type with
     // bytes32 values.
@@ -1464,14 +1464,14 @@ library EnumerableSet {
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable1.sol)
 /**
- * @dev Extension of {AccessControl} that allows enumerating the members of each role.
+ * @dev Extension of {AccessControl1} that allows enumerating the members of each role.
  */
-abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessControl {
-    using EnumerableSet for EnumerableSet.AddressSet;
+abstract contract AccessControlEnumerable1 is IAccessControlEnumerable, AccessControl1 {
+    using EnumerableSet1 for EnumerableSet1.AddressSet;
 
-    mapping(bytes32 => EnumerableSet.AddressSet) private _roleMembers;
+    mapping(bytes32 => EnumerableSet1.AddressSet) private _roleMembers;
 
     /**
      * @dev See {IERC165-supportsInterface}.
@@ -1489,7 +1489,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
      *
      * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
      * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-EnumerableSet1-in-openzeppelin-contracts/2296[forum post]
      * for more information.
      */
     function getRoleMember(bytes32 role, uint256 index) public view virtual override returns (address) {
@@ -1522,15 +1522,15 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
 }
 
 // -License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/presets/ERC20PresetMinterPauser.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC201/presets/ERC20PresetMinterPauser.sol)
 /**
- * @dev {ERC20} token, including:
+ * @dev {ERC201} token, including:
  *
  *  - ability for holders to burn (destroy) their tokens
  *  - a minter role that allows for token minting (creation)
  *  - a pauser role that allows to stop all token transfers
  *
- * This contract uses {AccessControl} to lock permissioned functions using the
+ * This contract uses {AccessControl1} to lock permissioned functions using the
  * different roles - head to its documentation for details.
  *
  * The account that deploys the contract will be granted the minter and pauser
@@ -1539,7 +1539,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
  *
  * _Deprecated in favor of https://wizard.openzeppelin.com/[Contracts Wizard]._
  */
-contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burnable, ERC20Pausable {
+contract ERC20PresetMinterPauser is Context1, AccessControlEnumerable1, ERC20Burnable1, ERC20Pausable1 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -1547,9 +1547,9 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
      * @dev Grants `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE` and `PAUSER_ROLE` to the
      * account that deploys the contract.
      *
-     * See {ERC20-constructor}.
+     * See {ERC201-constructor}.
      */
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
+    constructor(string memory name, string memory symbol) ERC201(name, symbol) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         _setupRole(MINTER_ROLE, _msgSender());
@@ -1559,7 +1559,7 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
     /**
      * @dev Creates `amount` new tokens for `to`.
      *
-     * See {ERC20-_mint}.
+     * See {ERC201-_mint}.
      *
      * Requirements:
      *
@@ -1573,7 +1573,7 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
     /**
      * @dev Pauses all token transfers.
      *
-     * See {ERC20Pausable} and {Pausable-_pause}.
+     * See {ERC20Pausable1} and {Pausable1-_pause}.
      *
      * Requirements:
      *
@@ -1587,7 +1587,7 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
     /**
      * @dev Unpauses all token transfers.
      *
-     * See {ERC20Pausable} and {Pausable-_unpause}.
+     * See {ERC20Pausable1} and {Pausable1-_unpause}.
      *
      * Requirements:
      *
@@ -1602,7 +1602,7 @@ contract ERC20PresetMinterPauser is Context, AccessControlEnumerable, ERC20Burna
         address from,
         address to,
         uint256 amount
-    ) internal virtual override(ERC20, ERC20Pausable) {
+    ) internal virtual override(ERC201, ERC20Pausable1) {
         super._beforeTokenTransfer(from, to, amount);
     }
 }
@@ -1618,7 +1618,7 @@ contract EZC is ERC20PresetMinterPauser{
     event CallbackGetTokenPrice(uint currentTokenPrice, uint timestamp);
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.2";
+        return "1.0.3";
     }
 
     function _beforeTransfer(address from, address to, uint256 amount) internal {
@@ -1629,7 +1629,7 @@ contract EZC is ERC20PresetMinterPauser{
     function mint(address to, uint256 dprAmount) public override(ERC20PresetMinterPauser){
         uint256 price = getOraclePrice();
         uint256 ezcAmount = (dprAmount * price * 100);
-        require(ezcAmount <= 100000 * 10 ** 18, "EZC: Execeed max amount");
+        require(balanceOf(to) <= 100000 * 10 ** 18, "EZC: Execeed max amount");
         super.mint(to, ezcAmount);
     }
 
