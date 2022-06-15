@@ -1613,7 +1613,6 @@ interface IEZC {
      * - the caller must have allowance for ``accounts``'s tokens of at least
      * `amount`.
      */
-    //function burnFrom(address account, uint256 amount) external;
 
     function burnFromMachine(address account, uint256 amount) external returns (uint256);
     function mint(address user, uint256 amount) external;
@@ -1643,9 +1642,7 @@ contract DECP is AccessControlEnumerable {
 
     mapping(address => mapping(uint64 => bool)) public userTask;
     mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
-
     mapping(uint64 => Task) public taskInfo;
-
     mapping(address => mapping(uint64 => uint256)) public userDayReward;
     mapping(address => uint64) public userCheckPoint;
     mapping(uint64 => uint256) public dayTotalReward;
