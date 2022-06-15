@@ -1613,10 +1613,9 @@ interface IEZC {
      * - the caller must have allowance for ``accounts``'s tokens of at least
      * `amount`.
      */
-    //function burnFrom(address account, uint256 amount) external;
+    function burnFrom(address account, uint256 amount) external;
 
     function burnFromMachine(address account, uint256 amount) external returns (uint256);
-    function mint(address user, uint256 amount) external;
 
 }
 
@@ -1625,7 +1624,7 @@ contract DEP is AccessControlEnumerable {
     bytes32 public constant REWARD_CHECKER_ROLE = keccak256("REWARD_CHECKER_ROLE");
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
-    event TaskPublished(uint64 taskId, string url, string options, uint64 maxRunNum, address[] receivers, uint64 maintainBlocks);
+    event TaskPublished(uint64 taskId, string url, string options, uint64 maxRunNum, address[] receivers);
     event RaceTask(address node, uint64 taskId);
     event ResetRunners(address[] receivers);
     event UpdateRunner(string version);
@@ -1636,8 +1635,7 @@ contract DEP is AccessControlEnumerable {
         uint64 maxRunNum;
         uint64 startTime;
         uint64 currentRunningNum;
-        uint64 maintainBlocks;
-        uint256 taskProof;
+        uint256 units;
         address[] receivers;
     }
 
@@ -1648,9 +1646,10 @@ contract DEP is AccessControlEnumerable {
 
     mapping(address => mapping(uint64 => uint256)) public userDayReward;
     mapping(address => uint64) public userCheckPoint;
+
     mapping(uint64 => uint256) public dayTotalReward;
+
     mapping(address => uint64) public userSettledDay;
-    mapping(address => bool) public addressWhitelist;
 
     //Initialization parameters
     uint64 public taskSum = 0;
@@ -1664,7 +1663,6 @@ contract DEP is AccessControlEnumerable {
     uint64 public raceTimeout = 20 minutes;
     uint64 public completeTimeout = 48 hours;
     uint64 public estimateRunNum = 1000;
-    uint64 public blockUintPrice = 10;
     
 
     IEZC ezc;
@@ -1684,18 +1682,13 @@ contract DEP is AccessControlEnumerable {
         _;
     }
 
-    modifier initTask(uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) {
+    modifier initTask(uint64 maxRunNum, address[] memory receivers) {
         uint256 taskTotalPrice = 0;
-        uint64 blockPrice = 1;
-
-        require(addressWhitelist[_msgSender()], "Unauthorized Address");
-
-        if (maintainBlocks > 10) blockPrice = maintainBlocks / blockUintPrice;
-        
-        taskTotalPrice = proofUnit * maxRunNum * blockPrice;
+        if(maxRunNum > 0) taskTotalPrice = proofUnit * maxRunNum;
+        else taskTotalPrice = proofUnit * estimateRunNum;
 
         uint256 taskProof = ezc.burnFromMachine(_msgSender(), taskTotalPrice);
-        _assemblyTask(taskProof, maxRunNum, receivers, maintainBlocks);
+        _assemblyTask(taskProof, maxRunNum, receivers);
         _;
     }
 
@@ -1704,7 +1697,7 @@ contract DEP is AccessControlEnumerable {
     }
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.3";
+        return "1.0.2";
     }
 
     function setEZC(IEZC _ezc) external onlyOwner {
@@ -1723,15 +1716,7 @@ contract DEP is AccessControlEnumerable {
         completeTimeout = _completeTimeout;
     }
 
-    function setBlockUnitPrice(uint64 _blockUnitPrice) external onlyOwner {
-        blockUintPrice = _blockUnitPrice;
-    }
-
-    function setAddressWhitelist(address _permissionAddress) external onlyOwner {
-        addressWhitelist[_permissionAddress] = true;
-    }
-
-    function getRewardPoint(address _user) public view returns (uint64 _day) {
+    function getRewardPoint(address _user) public view returns (uint64 _day){
         _day = userCheckPoint[_user];
         if (_day == 0) _day = startDay;
     }
@@ -1740,24 +1725,27 @@ contract DEP is AccessControlEnumerable {
         userCheckPoint[_user] = _day;
     }
 
-    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, uint64 maintainBlocks) external initTask(maxRunNum, initReceivers, maintainBlocks) {
-        emit TaskPublished(taskSum, url, options, maxRunNum, initReceivers, maintainBlocks);
+    function fullNodeTask(string calldata url, string calldata options) external initTask(initRunNum, initReceivers) {
+        emit TaskPublished(taskSum, url, options, initRunNum, initReceivers);
     }
 
-    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) external initTask(maxRunNum, receivers, maintainBlocks) {
-        emit TaskPublished(taskSum, url, options, maxRunNum, receivers, maintainBlocks);
+    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum) external initTask(maxRunNum, initReceivers) {
+        emit TaskPublished(taskSum, url, options, maxRunNum, initReceivers);
     }
 
-    function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
+    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers) external initTask(maxRunNum, receivers) {
+        emit TaskPublished(taskSum, url, options, maxRunNum, receivers);
+    }
+
+    function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers) private returns(bool) {
         taskSum = taskSum + 1;
         dayTotalReward[getCurrentDay()] += taskProof;
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
-        taskInfo[taskSum].taskProof = taskProof;
+        taskInfo[taskSum].units = taskProof;
         taskInfo[taskSum].startTime = getCurrenTime();
         taskInfo[taskSum].receivers = receivers;
-        taskInfo[taskSum].maintainBlocks = maintainBlocks;
         return true;
     }
 
@@ -1802,8 +1790,10 @@ contract DEP is AccessControlEnumerable {
         require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task has been expired");
 
         userTaskCompleted[_msgSender()][taskId] = true;
-        
-        userDayReward[_msgSender()][getCurrentDay()] += proofUnit;
+
+        uint256 payment = taskInfo[taskId].units / taskInfo[taskId].currentRunningNum;
+        userDayReward[_msgSender()][getCurrentDay()] += payment;
+        taskInfo[taskId].units -= payment;
         taskInfo[taskId].currentRunningNum--;
     }
 
@@ -1837,5 +1827,10 @@ contract DEP is AccessControlEnumerable {
 
     function readSubIndexForTask(uint64 taskId) public view returns (bool) {
         return userTask[_msgSender()][taskId];
+    }
+
+    function withdrawFund() external onlyOwner {
+        address payable powner = payable(owner);
+        powner.transfer(address(this).balance);
     }
 }
