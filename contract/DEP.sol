@@ -1620,7 +1620,7 @@ interface IEZC {
 
 }
 
-contract DECP is AccessControlEnumerable {
+contract DEP is AccessControlEnumerable {
 
     bytes32 public constant REWARD_CHECKER_ROLE = keccak256("REWARD_CHECKER_ROLE");
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
