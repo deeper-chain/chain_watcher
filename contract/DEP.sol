@@ -1628,7 +1628,8 @@ contract DEP is AccessControlEnumerable {
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
-    event TaskPublished(uint64 taskId, string url, string options, uint64 maxRunNum, address[] receivers, uint64 maintainBlocks);
+    event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
+    event addTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
 
     struct Task {
         uint64 currentRunNum;
@@ -1637,6 +1638,7 @@ contract DEP is AccessControlEnumerable {
         uint64 currentRunningNum;
         uint64 maintainBlocks;
         uint256 taskProof;
+        uint256 taskUintProof;
         address[] receivers;
     }
 
@@ -1661,7 +1663,7 @@ contract DEP is AccessControlEnumerable {
     uint64 public raceTimeout = 20 minutes;
     uint64 public completeTimeout = 48 hours;
     uint64 public estimateRunNum = 1000;
-    uint64 public blockUintPrice = 10;
+    uint64 public blockUintPrice = 100;
     
 
     IEZC ezc;
@@ -1687,7 +1689,7 @@ contract DEP is AccessControlEnumerable {
 
         require(addressWhitelist[_msgSender()], "Unauthorized Address");
 
-        if (maintainBlocks > 10) blockPrice = maintainBlocks / blockUintPrice;
+        if (maintainBlocks > 100) blockPrice = maintainBlocks / blockUintPrice;
         
         taskTotalPrice = proofUnit * maxRunNum * blockPrice;
 
@@ -1747,10 +1749,30 @@ contract DEP is AccessControlEnumerable {
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
         taskInfo[taskSum].taskProof = taskProof;
+        taskInfo[taskSum].taskUintProof = _getTaskUnitProof(taskSum);
         taskInfo[taskSum].startTime = getCurrenTime();
         taskInfo[taskSum].receivers = receivers;
         taskInfo[taskSum].maintainBlocks = maintainBlocks;
         return true;
+    }
+
+    function _getTaskUnitProof(uint64 taskId) private view returns(uint256) {
+        return taskInfo[taskId].taskProof / taskInfo[taskId].maxRunNum;
+    }
+
+    function increaseTaskDuration(uint64 taskId, uint64 maintainExtraBlocks) external {
+        uint256 taskExtraPrice = 0;
+        uint64 maxRunNum = taskInfo[taskId].maxRunNum;
+        uint64 blockPrice = 1;
+        if (maintainExtraBlocks > 100) blockPrice = maintainExtraBlocks / blockUintPrice;
+        
+        taskExtraPrice = proofUnit * maxRunNum * blockPrice;
+        uint256 taskExtraProof = ezc.burnFromMachine(_msgSender(), taskExtraPrice);
+        taskInfo[taskId].taskProof += taskExtraProof;
+        taskInfo[taskId].taskUintProof = _getTaskUnitProof(taskId);
+        taskInfo[taskId].maintainBlocks += maintainExtraBlocks;
+
+        emit addTaskDuration(_msgSender(), taskId, maintainExtraBlocks);
     }
 
     function resetRunners(address[] calldata receivers) external {
@@ -1779,7 +1801,7 @@ contract DEP is AccessControlEnumerable {
             require(exists, "Invalid task receiver");
         }
 
-        require(!readSubIndexForTask(taskId), "Address already used");
+        require(!getSubIndexForTask(taskId), "Address already used");
 
         userTask[_msgSender()][taskId] = true;
         taskInfo[taskId].currentRunNum = taskInfo[taskId].currentRunNum + 1;
@@ -1795,7 +1817,7 @@ contract DEP is AccessControlEnumerable {
 
         userTaskCompleted[_msgSender()][taskId] = true;
         
-        userDayReward[_msgSender()][getCurrentDay()] += proofUnit;
+        userDayReward[_msgSender()][getCurrentDay()] += taskInfo[taskId].taskUintProof;
         taskInfo[taskId].currentRunningNum--;
     }
 
@@ -1819,7 +1841,11 @@ contract DEP is AccessControlEnumerable {
         return dayTotalReward[theDay];
     }
 
-    function readSubIndexForTask(uint64 taskId) public view returns (bool) {
+    function getSubIndexForTask(uint64 taskId) public view returns (bool) {
         return userTask[_msgSender()][taskId];
+    }
+
+    function getTaskRemainingTime(uint64 taskId) public view returns (uint64) {
+        return getCurrenTime() - (taskInfo[taskId].startTime + taskInfo[taskId].maintainBlocks * 5);
     }
 }
