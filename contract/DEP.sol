@@ -1628,8 +1628,8 @@ contract DEP is AccessControlEnumerable {
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
-    event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
     event addTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
+    event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
 
     struct Task {
         uint64 currentRunNum;
@@ -1659,11 +1659,11 @@ contract DEP is AccessControlEnumerable {
     address[] initReceivers;
 
     //Configuration parameters
-    uint256 public proofUnit = 1 ether;
     uint64 public raceTimeout = 20 minutes;
     uint64 public completeTimeout = 48 hours;
     uint64 public estimateRunNum = 1000;
     uint64 public blockUintPrice = 100;
+    uint256 public proofUnit = 1 ether;
     
 
     IEZC ezc;
@@ -1734,11 +1734,22 @@ contract DEP is AccessControlEnumerable {
         userRewardPoint[_user] = _day;
     }
 
-    function nNodeUnSpecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, uint64 maintainBlocks) external initTask(maxRunNum, initReceivers, maintainBlocks) {
+    function nNodeUnSpecifiedAddressTask(
+        string calldata url, 
+        string calldata options, 
+        uint64 maxRunNum, 
+        uint64 maintainBlocks
+    ) external initTask(maxRunNum, initReceivers, maintainBlocks) {
         emit TaskPublished(taskSum, url, options, maxRunNum, initReceivers, maintainBlocks);
     }
 
-    function nNodespecifiedAddressTask(string calldata url, string calldata options, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) external initTask(maxRunNum, receivers, maintainBlocks) {
+    function nNodespecifiedAddressTask(
+        string calldata url, 
+        string calldata options, 
+        uint64 maxRunNum, 
+        address[] memory receivers, 
+        uint64 maintainBlocks
+    ) external initTask(maxRunNum, receivers, maintainBlocks) {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers, maintainBlocks);
     }
 
