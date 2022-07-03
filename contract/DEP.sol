@@ -1615,7 +1615,7 @@ interface IEZC {
      */
 
     function burnFromMachine(address account, uint256 amount) external returns (uint256);
-    function mint(address user, uint256 amount) external;
+    function mint_ezc(address user, uint256 ezcMintAmount) external;
 
 }
 
@@ -1739,12 +1739,12 @@ contract DEP is AccessControlEnumerable {
 
     function withdrawEZC(uint64 taskId) external onlyOwner{
         require(taskSum >= taskId, "Invalid taskId");
-        require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task race has been expired");
+        require(taskInfo[taskId].startTime + completeTimeout <= getCurrenTime(), "Task race has been expired");
         require(!isWithdrawFromOwner[taskId], "Already withdraw");
         uint256 usage = taskInfo[taskId].currentRunNum * taskInfo[taskId].taskUintProof;
         require(taskInfo[taskId].taskProof > usage, "Invalid withdraw");
         uint256 remaining = taskInfo[taskId].taskProof - usage;
-        ezc.mint(taskInfo[taskId].publisher, remaining);
+        ezc.mint_ezc(taskInfo[taskId].publisher, remaining);
         isWithdrawFromOwner[taskId] = true;
     }
 
