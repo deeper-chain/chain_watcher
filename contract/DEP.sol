@@ -1630,6 +1630,7 @@ contract DEP is AccessControlEnumerable {
     event RaceTask(address node, uint64 taskId);
     event addTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
     event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
+    event DeleteImage(string url);
 
     struct Task {
         uint64 currentRunNum;
@@ -1640,6 +1641,7 @@ contract DEP is AccessControlEnumerable {
         uint256 taskProof;
         uint256 taskUintProof;
         address[] receivers;
+        address publisher;
     }
 
     mapping(uint64 => Task) public taskInfo;
@@ -1650,7 +1652,8 @@ contract DEP is AccessControlEnumerable {
     mapping(address => mapping(uint64 => bool)) public userTask;
     mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
     mapping(address => mapping(uint64 => uint256)) public userDayReward;
-    
+    mapping(uint256 => bool) public isWithdrawFromOwner;
+
     //Initialization parameters
     uint64 public taskSum = 0;
     uint64 public initRunNum = 0;
@@ -1734,6 +1737,17 @@ contract DEP is AccessControlEnumerable {
         userRewardPoint[_user] = _day;
     }
 
+    function withdrawEZC(uint64 taskId) external onlyOwner{
+        require(taskSum >= taskId, "Invalid taskId");
+        require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task race has been expired");
+        require(!isWithdrawFromOwner[taskId], "Already withdraw");
+        uint256 usage = taskInfo[taskId].currentRunNum * taskInfo[taskId].taskUintProof;
+        require(taskInfo[taskId].taskProof > usage, "Invalid withdraw");
+        uint256 remaining = taskInfo[taskId].taskProof - usage;
+        ezc.mint(taskInfo[taskId].publisher, remaining);
+        isWithdrawFromOwner[taskId] = true;
+    }
+
     function nNodeUnSpecifiedAddressTask(
         string calldata url, 
         string calldata options, 
@@ -1756,6 +1770,7 @@ contract DEP is AccessControlEnumerable {
     function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
         taskSum = taskSum + 1;
         dayTotalReward[getCurrentDay()] += taskProof;
+        taskInfo[taskSum].publisher = _msgSender();
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
@@ -1821,7 +1836,12 @@ contract DEP is AccessControlEnumerable {
         emit RaceTask(_msgSender(), taskId);
     }
 
+    function deleteImage(string calldata url) public onlyOwner {
+        emit DeleteImage(url);
+    } 
+
     function completeSubIndexForTask(uint64 taskId) external {
+        require(taskSum >= taskId, "Invalid taskId");
         require(userTask[_msgSender()][taskId], "Invalid taskId or task not raced");
         require(!userTaskCompleted[_msgSender()][taskId], "Sub task has been completed");
         require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task has been expired");
