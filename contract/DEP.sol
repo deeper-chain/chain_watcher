@@ -1655,7 +1655,7 @@ contract DEP is AccessControlEnumerable {
     mapping(address => mapping(uint64 => bool)) public userTask;
     mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
     mapping(address => mapping(uint64 => uint256)) public userDayReward;
-    mapping(uint256 => bool) public isWithdrawFromOwner;
+    mapping(uint64 => bool) public isWithdrawFromOwner;
 
     //Initialization parameters
     uint64 public taskSum = 0;
