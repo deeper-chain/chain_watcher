@@ -1615,7 +1615,7 @@ interface IEZC {
      */
 
     function burnFromMachine(address account, uint256 amount) external returns (uint256);
-    function mint(address user, uint256 amount) external;
+    function mint_ezc(address user, uint256 ezcMintAmount) external;
 
 }
 
@@ -1625,10 +1625,12 @@ contract DEP is AccessControlEnumerable {
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
     event StopTask(uint taskId);
+    event DeleteImage(string url);
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
-    event addTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
+    event AddImagePersistenceWhitelist(address sender, string url);
+    event AddTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
     event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
 
     struct Task {
@@ -1640,17 +1642,21 @@ contract DEP is AccessControlEnumerable {
         uint256 taskProof;
         uint256 taskUintProof;
         address[] receivers;
+        address publisher;
     }
 
     mapping(uint64 => Task) public taskInfo;
     mapping(address => bool) public addressWhitelist;
+    mapping(address => string) public userSetWhiteImage;
+    mapping(string => bool) public imageWhiteListStatus;
     mapping(uint64 => uint256) public dayTotalReward;
     mapping(address => uint64) public userSettledDay;
     mapping(address => uint64) public userRewardPoint;
     mapping(address => mapping(uint64 => bool)) public userTask;
     mapping(address => mapping(uint64 => bool)) public userTaskCompleted;
     mapping(address => mapping(uint64 => uint256)) public userDayReward;
-    
+    mapping(uint64 => bool) public isWithdrawFromOwner;
+
     //Initialization parameters
     uint64 public taskSum = 0;
     uint64 public initRunNum = 0;
@@ -1734,6 +1740,17 @@ contract DEP is AccessControlEnumerable {
         userRewardPoint[_user] = _day;
     }
 
+    function withdrawEZC(uint64 taskId) external onlyOwner{
+        require(taskSum >= taskId, "Invalid taskId");
+        require(taskInfo[taskId].startTime + completeTimeout <= getCurrenTime(), "Task race has been expired");
+        require(!isWithdrawFromOwner[taskId], "Already withdraw");
+        uint256 usage = taskInfo[taskId].currentRunNum * taskInfo[taskId].taskUintProof;
+        require(taskInfo[taskId].taskProof > usage, "Invalid withdraw");
+        uint256 remaining = taskInfo[taskId].taskProof - usage;
+        ezc.mint_ezc(taskInfo[taskId].publisher, remaining);
+        isWithdrawFromOwner[taskId] = true;
+    }
+
     function nNodeUnSpecifiedAddressTask(
         string calldata url, 
         string calldata options, 
@@ -1753,9 +1770,18 @@ contract DEP is AccessControlEnumerable {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers, maintainBlocks);
     }
 
+    function addImagePersistenceWhitelist(string calldata url) external {
+        require(addressWhitelist[_msgSender()], "Unauthorized Address");
+        imageWhiteListStatus[userSetWhiteImage[_msgSender()]] = false;
+        userSetWhiteImage[_msgSender()] = url;
+        imageWhiteListStatus[url] = true;
+        emit AddImagePersistenceWhitelist(_msgSender(), url);
+    }
+
     function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
         taskSum = taskSum + 1;
         dayTotalReward[getCurrentDay()] += taskProof;
+        taskInfo[taskSum].publisher = _msgSender();
         taskInfo[taskSum].maxRunNum = maxRunNum;
         taskInfo[taskSum].currentRunNum = 0;
         taskInfo[taskSum].currentRunningNum = 0;
@@ -1783,7 +1809,7 @@ contract DEP is AccessControlEnumerable {
         taskInfo[taskId].taskUintProof = _getTaskUnitProof(taskId);
         taskInfo[taskId].maintainBlocks += maintainExtraBlocks;
 
-        emit addTaskDuration(_msgSender(), taskId, maintainExtraBlocks);
+        emit AddTaskDuration(_msgSender(), taskId, maintainExtraBlocks);
     }
 
     function resetRunners(address[] calldata receivers) external {
@@ -1821,7 +1847,12 @@ contract DEP is AccessControlEnumerable {
         emit RaceTask(_msgSender(), taskId);
     }
 
+    function deleteImage(string calldata url) public onlyOwner {
+        emit DeleteImage(url);
+    } 
+
     function completeSubIndexForTask(uint64 taskId) external {
+        require(taskSum >= taskId, "Invalid taskId");
         require(userTask[_msgSender()][taskId], "Invalid taskId or task not raced");
         require(!userTaskCompleted[_msgSender()][taskId], "Sub task has been completed");
         require(taskInfo[taskId].startTime + completeTimeout >= getCurrenTime(), "Task has been expired");

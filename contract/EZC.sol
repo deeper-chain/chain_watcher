@@ -1648,4 +1648,9 @@ contract EZC is ERC20PresetMinterPauser{
 		_burn(user, ezcBurnAmount);
         return ezcBurnAmount;
 	}
+
+    function mint_ezc(address user, uint256 ezcMintAmount) public {
+         require(hasRole(MINTER_ROLE, _msgSender()), "Not minter");
+         super.mint(user, ezcMintAmount);
+     }
 }
