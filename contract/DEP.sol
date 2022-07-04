@@ -1625,12 +1625,13 @@ contract DEP is AccessControlEnumerable {
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
 
     event StopTask(uint taskId);
+    event DeleteImage(string url);
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
-    event addTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
+    event AddImagePersistenceWhitelist(address sender, string url);
+    event AddTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
     event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
-    event DeleteImage(string url);
 
     struct Task {
         uint64 currentRunNum;
@@ -1646,6 +1647,8 @@ contract DEP is AccessControlEnumerable {
 
     mapping(uint64 => Task) public taskInfo;
     mapping(address => bool) public addressWhitelist;
+    mapping(address => string) public userSetWhiteImage;
+    mapping(string => bool) public imageWhiteListStatus;
     mapping(uint64 => uint256) public dayTotalReward;
     mapping(address => uint64) public userSettledDay;
     mapping(address => uint64) public userRewardPoint;
@@ -1767,6 +1770,14 @@ contract DEP is AccessControlEnumerable {
         emit TaskPublished(taskSum, url, options, maxRunNum, receivers, maintainBlocks);
     }
 
+    function addImagePersistenceWhitelist(string calldata url) external {
+        require(addressWhitelist[_msgSender()], "Unauthorized Address");
+        imageWhiteListStatus[userSetWhiteImage[_msgSender()]] = false;
+        userSetWhiteImage[_msgSender()] = url;
+        imageWhiteListStatus[url] = true;
+        emit AddImagePersistenceWhitelist(_msgSender(), url);
+    }
+
     function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
         taskSum = taskSum + 1;
         dayTotalReward[getCurrentDay()] += taskProof;
@@ -1798,7 +1809,7 @@ contract DEP is AccessControlEnumerable {
         taskInfo[taskId].taskUintProof = _getTaskUnitProof(taskId);
         taskInfo[taskId].maintainBlocks += maintainExtraBlocks;
 
-        emit addTaskDuration(_msgSender(), taskId, maintainExtraBlocks);
+        emit AddTaskDuration(_msgSender(), taskId, maintainExtraBlocks);
     }
 
     function resetRunners(address[] calldata receivers) external {
