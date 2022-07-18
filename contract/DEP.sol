@@ -1709,7 +1709,7 @@ contract DEP is AccessControlEnumerable {
     }
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.3";
+        return "1.0.4";
     }
 
     function setEZC(IEZC _ezc) external onlyOwner {
