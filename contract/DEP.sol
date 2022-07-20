@@ -1629,6 +1629,7 @@ contract DEP is AccessControlEnumerable {
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
+    event CompleteTask(address node, uint256 taskProof);
     event AddImagePersistenceWhitelist(address sender, string url);
     event AddTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
     event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
@@ -1650,6 +1651,7 @@ contract DEP is AccessControlEnumerable {
     mapping(address => string) public userSetWhiteImage;
     mapping(string => bool) public imageWhiteListStatus;
     mapping(uint64 => uint256) public dayTotalReward;
+    mapping(address => uint256) public userTotalUnrewarded;
     mapping(address => uint64) public userSettledDay;
     mapping(address => uint64) public userRewardPoint;
     mapping(address => mapping(uint64 => bool)) public userTask;
@@ -1675,7 +1677,6 @@ contract DEP is AccessControlEnumerable {
     IEZC ezc;
     constructor(IEZC _ezc) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-
         _setupRole(UPDATER_ROLE, _msgSender());
         _setupRole(REWARD_CHECKER_ROLE, _msgSender());
 
@@ -1709,7 +1710,7 @@ contract DEP is AccessControlEnumerable {
     }
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.3";
+        return "1.0.5";
     }
 
     function setEZC(IEZC _ezc) external onlyOwner {
@@ -1737,7 +1738,12 @@ contract DEP is AccessControlEnumerable {
     }
 
     function updateRewardPoint(address _user, uint64 _day) external onlyOwner {
+        uint64 index = _day;
         userRewardPoint[_user] = _day;
+
+        while(index++ < getCurrentDay()) {
+            userTotalUnrewarded[_user] += userDayReward[_user][index];
+        }
     }
 
     function withdrawEZC(uint64 taskId) external onlyOwner{
@@ -1847,8 +1853,8 @@ contract DEP is AccessControlEnumerable {
         emit RaceTask(_msgSender(), taskId);
     }
 
-    function deleteImage(string calldata url) public onlyOwner {
-        emit DeleteImage(url);
+    function deleteImage(string calldata imageHash) public onlyOwner {
+        emit DeleteImage(imageHash);
     } 
 
     function completeSubIndexForTask(uint64 taskId) external {
@@ -1861,6 +1867,8 @@ contract DEP is AccessControlEnumerable {
         
         userDayReward[_msgSender()][getCurrentDay()] += taskInfo[taskId].taskUintProof;
         taskInfo[taskId].currentRunningNum--;
+
+        emit CompleteTask(_msgSender(), taskInfo[taskId].taskUintProof);
     }
 
     function getCurrentDay() public view returns (uint64) {
@@ -1871,15 +1879,23 @@ contract DEP is AccessControlEnumerable {
         return uint64(block.timestamp);
     }
 
-    function getUserRewardPointer(address _user) public view onlyOwner returns (uint64) {
+    function getUserRewardPointer(address _user) external view onlyOwner returns (uint64) {
         return userRewardPoint[_user];
     }
 
-    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint256) {
+    function getUserRewardForDay(address user, uint64 theDay) external view returns (uint256) {
         return userDayReward[user][theDay];
     }
 
-    function getTotalRewardForDay(uint64 theDay) public view returns (uint256){
+    function getUserRewardForCurrentDay(address user) external view returns (uint256) {
+        return userDayReward[user][getCurrentDay()];
+    }
+
+    function getUserTotalUnrewarded(address user) external view returns (uint256) {
+        return userTotalUnrewarded[user];
+    }
+
+    function getTotalRewardForDay(uint64 theDay) external view returns (uint256){
         return dayTotalReward[theDay];
     }
 
