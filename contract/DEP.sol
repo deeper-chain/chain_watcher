@@ -1542,31 +1542,6 @@ interface IEZC {
     function transfer(address to, uint256 amount) external returns (bool);
 
     /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
      * @dev Moves `amount` tokens from `from` to `to` using the
      * allowance mechanism. `amount` is then deducted from the caller's
      * allowance.
@@ -1588,12 +1563,6 @@ interface IEZC {
      * Note that `value` may be zero.
      */
     event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     /**
      * @dev Destroys `amount` tokens from the caller.
@@ -1629,6 +1598,7 @@ contract DEP is AccessControlEnumerable {
     event UpdateRunner(string version);
     event ResetRunners(address[] receivers);
     event RaceTask(address node, uint64 taskId);
+    event CompleteTask(address node, uint256 taskProof);
     event AddImagePersistenceWhitelist(address sender, string url);
     event AddTaskDuration(address optionUser, uint64 taskId, uint64 maintainExtraBlocks);
     event TaskPublished(uint64 taskId, string url, string options, uint256 maxRunNum, address[] receivers, uint64 maintainBlocks);
@@ -1665,17 +1635,17 @@ contract DEP is AccessControlEnumerable {
     address[] initReceivers;
 
     //Configuration parameters
-    uint64 public raceTimeout = 20 minutes;
-    uint64 public completeTimeout = 48 hours;
-    uint64 public estimateRunNum = 1000;
+    uint64 public creditThreshold  = 10;
     uint64 public blockUintPrice = 100;
     uint256 public proofUnit = 1 ether;
+    uint64 public estimateRunNum = 1000;
+    uint64 public raceTimeout = 20 minutes;
+    uint64 public completeTimeout = 48 hours;
+    address private constant DISPATCH = 0x0000000000000000000000000000000000000406;
     
-
     IEZC ezc;
     constructor(IEZC _ezc) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-
         _setupRole(UPDATER_ROLE, _msgSender());
         _setupRole(REWARD_CHECKER_ROLE, _msgSender());
 
@@ -1709,7 +1679,7 @@ contract DEP is AccessControlEnumerable {
     }
 
     function implementationVersion() external pure virtual returns (string memory) {
-        return "1.0.3";
+        return "1.0.5";
     }
 
     function setEZC(IEZC _ezc) external onlyOwner {
@@ -1730,6 +1700,10 @@ contract DEP is AccessControlEnumerable {
 
     function setBlockUnitPrice(uint64 _blockUnitPrice) external onlyOwner {
         blockUintPrice = _blockUnitPrice;
+    }
+
+    function setCreditThreshold(uint64 _creditThreshold) external onlyOwner {
+        creditThreshold  = _creditThreshold;
     }
 
     function setAddressWhitelist(address _permissionAddress, bool _authorization) external onlyOwner {
@@ -1779,22 +1753,29 @@ contract DEP is AccessControlEnumerable {
     }
 
     function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
-        taskSum = taskSum + 1;
+        uint64 index = ++taskSum;
         dayTotalReward[getCurrentDay()] += taskProof;
-        taskInfo[taskSum].publisher = _msgSender();
-        taskInfo[taskSum].maxRunNum = maxRunNum;
-        taskInfo[taskSum].currentRunNum = 0;
-        taskInfo[taskSum].currentRunningNum = 0;
-        taskInfo[taskSum].taskProof = taskProof;
-        taskInfo[taskSum].taskUintProof = _getTaskUnitProof(taskSum);
-        taskInfo[taskSum].startTime = getCurrenTime();
-        taskInfo[taskSum].receivers = receivers;
-        taskInfo[taskSum].maintainBlocks = maintainBlocks;
+        taskInfo[index].publisher = _msgSender();
+        taskInfo[index].maxRunNum = maxRunNum;
+        taskInfo[index].currentRunNum = 0;
+        taskInfo[index].currentRunningNum = 0;
+        taskInfo[index].taskProof = taskProof;
+        taskInfo[index].taskUintProof = _getTaskUnitProof(index);
+        taskInfo[index].startTime = getCurrenTime();
+        taskInfo[index].receivers = receivers;
+        taskInfo[index].maintainBlocks = maintainBlocks;
         return true;
     }
 
     function _getTaskUnitProof(uint64 taskId) private view returns(uint256) {
         return taskInfo[taskId].taskProof / taskInfo[taskId].maxRunNum;
+    }
+
+    function _toUint64(bytes memory _bytes) private pure returns (uint64 value)
+    {
+        assembly {
+            value := mload(add(_bytes, 0x20))
+        }
     }
 
     function increaseTaskDuration(uint64 taskId, uint64 maintainExtraBlocks) external {
@@ -1820,10 +1801,20 @@ contract DEP is AccessControlEnumerable {
         emit StopTask(taskId);
     }
 
+    function deleteImage(string calldata imageHash) external onlyOwner {
+        emit DeleteImage(imageHash);
+    } 
+
     function raceSubIndexForTask(uint64 taskId) external {
         require(taskSum >= taskId, "Invalid taskId");
         require(taskInfo[taskId].maxRunNum >= taskInfo[taskId].currentRunNum + 1, "Task has been filled");
         require(taskInfo[taskId].startTime + raceTimeout >= getCurrenTime(), "Task race has been expired");
+
+        (bool success, bytes memory x) = DISPATCH.call(
+            abi.encodeWithSignature("get_credit_score(address)", _msgSender())
+        );
+        require(success, "get_credit_score not ok");
+        require(_toUint64(x) > creditThreshold, "Low credit score, no right to enforce");
 
         uint len = taskInfo[taskId].receivers.length;
         if (len > 0) {
@@ -1847,10 +1838,6 @@ contract DEP is AccessControlEnumerable {
         emit RaceTask(_msgSender(), taskId);
     }
 
-    function deleteImage(string calldata url) public onlyOwner {
-        emit DeleteImage(url);
-    } 
-
     function completeSubIndexForTask(uint64 taskId) external {
         require(taskSum >= taskId, "Invalid taskId");
         require(userTask[_msgSender()][taskId], "Invalid taskId or task not raced");
@@ -1861,6 +1848,8 @@ contract DEP is AccessControlEnumerable {
         
         userDayReward[_msgSender()][getCurrentDay()] += taskInfo[taskId].taskUintProof;
         taskInfo[taskId].currentRunningNum--;
+
+        emit CompleteTask(_msgSender(), taskInfo[taskId].taskUintProof);
     }
 
     function getCurrentDay() public view returns (uint64) {
@@ -1871,15 +1860,19 @@ contract DEP is AccessControlEnumerable {
         return uint64(block.timestamp);
     }
 
-    function getUserRewardPointer(address _user) public view onlyOwner returns (uint64) {
+    function getUserRewardPointer(address _user) external view returns (uint64) {
         return userRewardPoint[_user];
     }
 
-    function getUserRewardForDay(address user, uint64 theDay) public view returns (uint256) {
+    function getUserRewardForDay(address user, uint64 theDay) external view returns (uint256) {
         return userDayReward[user][theDay];
     }
 
-    function getTotalRewardForDay(uint64 theDay) public view returns (uint256){
+    function getUserRewardForCurrentDay(address user) external view returns (uint256) {
+        return userDayReward[user][getCurrentDay()];
+    }
+
+    function getTotalRewardForDay(uint64 theDay) external view returns (uint256){
         return dayTotalReward[theDay];
     }
 
