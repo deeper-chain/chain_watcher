@@ -1651,7 +1651,6 @@ contract DEP is AccessControlEnumerable {
     mapping(address => string) public userSetWhiteImage;
     mapping(string => bool) public imageWhiteListStatus;
     mapping(uint64 => uint256) public dayTotalReward;
-    mapping(address => uint256) public userTotalUnrewarded;
     mapping(address => uint64) public userSettledDay;
     mapping(address => uint64) public userRewardPoint;
     mapping(address => mapping(uint64 => bool)) public userTask;
@@ -1737,12 +1736,7 @@ contract DEP is AccessControlEnumerable {
     }
 
     function updateRewardPoint(address _user, uint64 _day) external onlyOwner {
-        uint64 index = _day;
         userRewardPoint[_user] = _day;
-
-        while(index++ < getCurrentDay()) {
-            userTotalUnrewarded[_user] += userDayReward[_user][index];
-        }
     }
 
     function withdrawEZC(uint64 taskId) external onlyOwner{
@@ -1784,17 +1778,17 @@ contract DEP is AccessControlEnumerable {
     }
 
     function _assemblyTask(uint256 taskProof, uint64 maxRunNum, address[] memory receivers, uint64 maintainBlocks) private returns(bool) {
-        taskSum = taskSum + 1;
+        uint64 index = ++taskSum;
         dayTotalReward[getCurrentDay()] += taskProof;
-        taskInfo[taskSum].publisher = _msgSender();
-        taskInfo[taskSum].maxRunNum = maxRunNum;
-        taskInfo[taskSum].currentRunNum = 0;
-        taskInfo[taskSum].currentRunningNum = 0;
-        taskInfo[taskSum].taskProof = taskProof;
-        taskInfo[taskSum].taskUintProof = _getTaskUnitProof(taskSum);
-        taskInfo[taskSum].startTime = getCurrenTime();
-        taskInfo[taskSum].receivers = receivers;
-        taskInfo[taskSum].maintainBlocks = maintainBlocks;
+        taskInfo[index].publisher = _msgSender();
+        taskInfo[index].maxRunNum = maxRunNum;
+        taskInfo[index].currentRunNum = 0;
+        taskInfo[index].currentRunningNum = 0;
+        taskInfo[index].taskProof = taskProof;
+        taskInfo[index].taskUintProof = _getTaskUnitProof(index);
+        taskInfo[index].startTime = getCurrenTime();
+        taskInfo[index].receivers = receivers;
+        taskInfo[index].maintainBlocks = maintainBlocks;
         return true;
     }
 
@@ -1852,7 +1846,7 @@ contract DEP is AccessControlEnumerable {
         emit RaceTask(_msgSender(), taskId);
     }
 
-    function deleteImage(string calldata imageHash) public onlyOwner {
+    function deleteImage(string calldata imageHash) external onlyOwner {
         emit DeleteImage(imageHash);
     } 
 
@@ -1888,10 +1882,6 @@ contract DEP is AccessControlEnumerable {
 
     function getUserRewardForCurrentDay(address user) external view returns (uint256) {
         return userDayReward[user][getCurrentDay()];
-    }
-
-    function getUserTotalUnrewarded(address user) external view returns (uint256) {
-        return userTotalUnrewarded[user];
     }
 
     function getTotalRewardForDay(uint64 theDay) external view returns (uint256){
