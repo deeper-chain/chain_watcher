@@ -1635,11 +1635,13 @@ contract DEP is AccessControlEnumerable {
     address[] initReceivers;
 
     //Configuration parameters
-    uint64 public raceTimeout = 20 minutes;
-    uint64 public completeTimeout = 48 hours;
-    uint64 public estimateRunNum = 1000;
+    uint64 public creditThreshold  = 10;
     uint64 public blockUintPrice = 100;
     uint256 public proofUnit = 1 ether;
+    uint64 public estimateRunNum = 1000;
+    uint64 public raceTimeout = 20 minutes;
+    uint64 public completeTimeout = 48 hours;
+    address private constant DISPATCH = 0x0000000000000000000000000000000000000406;
     
     IEZC ezc;
     constructor(IEZC _ezc) {
@@ -1698,6 +1700,10 @@ contract DEP is AccessControlEnumerable {
 
     function setBlockUnitPrice(uint64 _blockUnitPrice) external onlyOwner {
         blockUintPrice = _blockUnitPrice;
+    }
+
+    function setCreditThreshold(uint64 _creditThreshold) external onlyOwner {
+        creditThreshold  = _creditThreshold;
     }
 
     function setAddressWhitelist(address _permissionAddress, bool _authorization) external onlyOwner {
@@ -1765,6 +1771,13 @@ contract DEP is AccessControlEnumerable {
         return taskInfo[taskId].taskProof / taskInfo[taskId].maxRunNum;
     }
 
+    function _toUint64(bytes memory _bytes) private pure returns (uint64 value)
+    {
+        assembly {
+            value := mload(add(_bytes, 0x20))
+        }
+    }
+
     function increaseTaskDuration(uint64 taskId, uint64 maintainExtraBlocks) external {
         uint256 taskExtraPrice = 0;
         uint64 maxRunNum = taskInfo[taskId].maxRunNum;
@@ -1788,10 +1801,20 @@ contract DEP is AccessControlEnumerable {
         emit StopTask(taskId);
     }
 
+    function deleteImage(string calldata imageHash) external onlyOwner {
+        emit DeleteImage(imageHash);
+    } 
+
     function raceSubIndexForTask(uint64 taskId) external {
         require(taskSum >= taskId, "Invalid taskId");
         require(taskInfo[taskId].maxRunNum >= taskInfo[taskId].currentRunNum + 1, "Task has been filled");
         require(taskInfo[taskId].startTime + raceTimeout >= getCurrenTime(), "Task race has been expired");
+
+        (bool success, bytes memory x) = DISPATCH.call(
+            abi.encodeWithSignature("get_credit_score(address)", _msgSender())
+        );
+        require(success, "get_credit_score not ok");
+        require(_toUint64(x) > creditThreshold, "Low credit score, no right to enforce");
 
         uint len = taskInfo[taskId].receivers.length;
         if (len > 0) {
@@ -1814,10 +1837,6 @@ contract DEP is AccessControlEnumerable {
 
         emit RaceTask(_msgSender(), taskId);
     }
-
-    function deleteImage(string calldata imageHash) external onlyOwner {
-        emit DeleteImage(imageHash);
-    } 
 
     function completeSubIndexForTask(uint64 taskId) external {
         require(taskSum >= taskId, "Invalid taskId");
