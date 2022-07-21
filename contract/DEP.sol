@@ -1673,7 +1673,6 @@ contract DEP is AccessControlEnumerable {
     uint64 public blockUintPrice = 100;
     uint256 public proofUnit = 1 ether;
     
-
     IEZC ezc;
     constructor(IEZC _ezc) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -1879,7 +1878,7 @@ contract DEP is AccessControlEnumerable {
         return uint64(block.timestamp);
     }
 
-    function getUserRewardPointer(address _user) external view onlyOwner returns (uint64) {
+    function getUserRewardPointer(address _user) external view returns (uint64) {
         return userRewardPoint[_user];
     }
 
