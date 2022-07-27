@@ -1814,7 +1814,7 @@ contract DEP is AccessControlEnumerable {
             abi.encodeWithSignature("get_credit_score(address)", _msgSender())
         );
         require(success, "get_credit_score not ok");
-        require(_toUint64(x) > creditThreshold, "Low credit score, no right to enforce");
+        require(_toUint64(x) >= creditThreshold, "Low credit score, no right to enforce");
 
         uint len = taskInfo[taskId].receivers.length;
         if (len > 0) {
