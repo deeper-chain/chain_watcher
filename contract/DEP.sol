@@ -1710,7 +1710,7 @@ contract DEP is AccessControlEnumerable {
         addressWhitelist[_permissionAddress] = _authorization;
     }
 
-    function updateRewardPoint(address _user, uint64 _day) external onlyOwner {
+    function updateRewardPoint(address _user, uint64 _day) external onlyRole(UPDATER_ROLE) {
         userRewardPoint[_user] = _day;
     }
 
