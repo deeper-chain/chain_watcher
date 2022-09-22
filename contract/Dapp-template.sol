@@ -13,15 +13,15 @@ interface IDEP{
 	function proofUnit() external returns(uint256);
 }
 
-contract WorkCenter {
-	struct Work{
+contract DepTaskBridge {
+	struct Task{
 		string url;
 		string options;
 	}
 
 	address public owner;
 	IDEP public dep;
-	Work public currentWork;
+	Task public currentWork;
 
 
 	event NewTaskChange(string url, uint256 time);
@@ -36,13 +36,17 @@ contract WorkCenter {
 		dep = IDEP(_dep);
 	}
 
-	function setWork(string calldata workURL, string calldata options) external onlyOwner{
+	function setDEP(IDEP _dep) external onlyOwner {
+		dep = _dep;
+    }
+
+	function setTask(string calldata workURL, string calldata options) external onlyOwner{
 		currentWork.url = workURL;
 		currentWork.options = options;
 		emit NewTaskChange(workURL, block.timestamp);
 	}
 
-	function publishWork(address[] memory user_address, uint64 maintainBlocks) external{
+	function payForTask(address[] memory user_address, uint64 maintainBlocks) external{
 		dep.nNodespecifiedAddressTask(currentWork.url, currentWork.options, 1, user_address, maintainBlocks);
 	}
 }
