@@ -13,6 +13,11 @@ interface IDEP{
 	function proofUnit() external returns(uint256);
 }
 
+
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external;
+}
+
 contract DepTaskBridge {
 	struct Task{
 		string url;
@@ -22,6 +27,7 @@ contract DepTaskBridge {
 	address public owner;
 	IDEP public dep;
 	Task public currentWork;
+    IERC20 ezc;
 
 
 	event NewTaskChange(string url, uint256 time);
@@ -31,9 +37,10 @@ contract DepTaskBridge {
         _;
 	}	
 
-	constructor(address _dep) {
+	constructor(address _dep, address _ezc) {
 		owner = msg.sender;
 		dep = IDEP(_dep);
+        IERC20 ezc = IERC20(_ezc);
 	}
 
 	function setDEP(IDEP _dep) external onlyOwner {
@@ -47,6 +54,18 @@ contract DepTaskBridge {
 	}
 
 	function payForTask(address[] memory user_address, uint64 maintainBlocks) external{
+        uint256 totalPrice = calcEZC(1, maintainBlocks);
+        ezc.transferFrom(msg.sender, address(this),totalPrice);
 		dep.nNodespecifiedAddressTask(currentWork.url, currentWork.options, 1, user_address, maintainBlocks);
+	}
+
+	function calcEZC(uint256 maxRunNum, uint64 maintainBlocks) internal returns (uint256){
+		uint64  blockUintPrice = 100;
+		uint256 proofUnit = 1 ether;
+		uint256 taskTotalPrice = 0;
+        uint64 blockPrice = 1;
+		if (maintainBlocks > 100) blockPrice = maintainBlocks / blockUintPrice;
+        
+        taskTotalPrice = proofUnit * maxRunNum * blockPrice;
 	}
 }
